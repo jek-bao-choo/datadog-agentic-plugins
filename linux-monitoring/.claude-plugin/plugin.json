@@ -1,0 +1,5 @@
+{
+  "name": "linux-monitoring",
+  "description": "Set up Datadog infrastructure monitoring for Linux hosts (EC2, GCE, bare-metal)",
+  "version": "0.1.0"
+}
