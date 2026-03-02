@@ -1,0 +1,49 @@
+services:
+  # Splunk Enterprise (The Indexer/Search Head)
+  splunk:
+    platform: linux/amd64
+    image: splunk/splunk:10.2.1
+    container_name: splunk-enterprise
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
+      - SPLUNK_PASSWORD=ChangedPassword123!
+      - SPLUNK_HEC_TOKEN=00000000-0000-0000-0000-000000000000
+    ports:
+      - "8000:8000"   # Web UI
+      - "8088:8088"   # HTTP Event Collector (HEC)
+      - "8089:8089"   # Splunk REST API (Management Port)
+      - "9997:9997"   # Splunk Indexing Port (S2S)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - splunk-net
+
+  # Splunk Universal Forwarder
+  universal-forwarder:
+    platform: linux/amd64
+    image: splunk/universalforwarder:10.2.1
+    container_name: splunk-uf
+    depends_on:
+      splunk:
+        condition: service_healthy
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
+      - SPLUNK_PASSWORD=ChangedPassword123!
+      # Forward data to the Indexer service on port 9997
+      - SPLUNK_FORWARDER_ARGS=-forward-to splunk:9997
+      # Reference to your OTel example: Defining the target server
+      - SPLUNK_STANDALONE_URL=splunk
+    volumes:
+      - /var/lib/docker/containers:/host/containers:ro
+      - /var/log:/host/var/log:ro
+    networks:
+      - splunk-net
+
+networks:
+  splunk-net:
+    driver: bridge
