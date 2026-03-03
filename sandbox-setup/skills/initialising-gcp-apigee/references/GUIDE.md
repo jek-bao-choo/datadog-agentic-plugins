@@ -940,7 +940,7 @@ curl -s \
       \"endpoint\": \"$PROJECT\",
       \"samplingConfig\": {
         \"sampler\": \"PROBABILITY\",
-        \"samplingRate\": 1.0
+        \"samplingRate\": 0.5
       }
     }"
 ```
@@ -951,7 +951,7 @@ TraceConfig fields:
 |-------|--------|
 | `exporter` | `CLOUD_TRACE`, `JAEGER`, `OPEN_TELEMETRY_COLLECTOR` |
 | `samplingConfig.sampler` | `PROBABILITY`, `OFF` |
-| `samplingConfig.samplingRate` | `0.0` to `1.0` (e.g., `0.5` = 50%) |
+| `samplingConfig.samplingRate` | `0.0` to `0.5` (e.g., `0.5` = 50%) |
 
 > **Warning**: The `exporter` type is **immutable once set**. Cannot change without recreating the environment.
 
@@ -974,7 +974,54 @@ curl -s \
     }'
 ```
 
-### 5.3 Instrument the Spring Boot Application
+### 5.3 Trigger Traffic and View Traces
+
+#### Generate traffic
+
+```bash
+LB_IP=$(gcloud compute addresses describe jek-apigee-lb-ip \
+    --global --format="value(address)" --project="$PROJECT")
+
+# Send 10 requests to generate traces
+for i in $(seq 1 10); do
+  curl -k -s -o /dev/null -w "Request $i: HTTP %{http_code}\n" "https://${LB_IP}.nip.io/api/"
+done
+```
+
+> With `samplingRate: 0.5`, only ~50% of requests will be traced. Set to `1.0` in step 5.1 to capture every request.
+
+#### View traces via CLI
+
+```bash
+# List recent traces via REST API (may take 1-2 minutes to appear)
+TOKEN=$(gcloud auth print-access-token)
+curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://cloudtrace.googleapis.com/v2/projects/$PROJECT/traces?pageSize=5" \
+    | jq '.traces[] | {traceId: .traceId, spans: [.spans[].displayName]}'
+```
+
+> **Note**: There is no `gcloud trace traces list` command. Use the REST API above or the GCP Console.
+
+#### View traces via GCP Console
+
+1. Go to **Cloud Console** → search **"Trace"** → click **Trace Explorer**
+   - Direct URL: `https://console.cloud.google.com/traces/list?project=datadog-ese-sandbox`
+2. Set the time range to **Last 5 minutes**
+3. Traces from Apigee will show the request flow through the proxy
+
+![](../assets/proof-gcp-trace1.png)
+![](../assets/proof-gcp-trace2.png)
+
+#### View request details via Apigee Debug
+
+1. Go to **Apigee Console**: `https://console.cloud.google.com/apigee/proxies`
+2. Click `jek-apigee-api-v1` → **Debug** tab
+3. Click **Start Debug Session** → select `eval` environment
+4. Trigger a request with curl → view the full request/response flow with policy execution details in the waterfall view
+
+![](../assets/proof-gcp-apigee-debug.png)
+
+### 5.4 Instrument the Spring Boot Application
 
 #### Option A: OTel Java Agent (Zero-Code, Recommended)
 
@@ -1007,7 +1054,7 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 </dependency>
 ```
 
-### 5.4 Deploy an OTel Collector Sidecar
+### 5.5 Deploy an OTel Collector Sidecar
 
 The Collector receives OTLP from the Spring Boot app and exports to Cloud Trace.
 
@@ -1094,7 +1141,7 @@ kubectl create configmap otel-collector-config \
     --from-file=config.yaml=otel-collector-config.yaml
 ```
 
-### 5.5 Workload Identity for Cloud Trace
+### 5.6 Workload Identity for Cloud Trace
 
 ```bash
 # Create a GCP service account for the Spring Boot workload
@@ -1118,7 +1165,7 @@ kubectl annotate serviceaccount springboot-sa \
     iam.gke.io/gcp-service-account=jek-springboot-trace-sa@$PROJECT.iam.gserviceaccount.com
 ```
 
-### 5.6 End-to-End Trace Flow
+### 5.7 End-to-End Trace Flow
 
 ```
 Android App                    Apigee X                      Spring Boot (GKE)
@@ -1142,7 +1189,7 @@ Android App                    Apigee X                      Spring Boot (GKE)
                     under the same TRACE_ID
 ```
 
-### 5.7 Viewing Traces
+### 5.8 Viewing Traces
 
 1. Go to **Cloud Console** → **Trace** → **Trace Explorer**
 2. Filter by:
