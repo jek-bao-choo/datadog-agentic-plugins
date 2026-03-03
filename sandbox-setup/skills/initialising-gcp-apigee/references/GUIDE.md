@@ -1021,7 +1021,83 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ![](../assets/proof-gcp-apigee-debug.png)
 
-### 5.4 Instrument the Spring Boot Application
+### 5.4 (Alternative) Send Apigee Traces Directly to Datadog via OTLP
+
+Instead of exporting Apigee traces to Cloud Trace (step 5.1), you can send them directly to Datadog's OTLP ingest endpoint. This uses Apigee's `OPEN_TELEMETRY_COLLECTOR` exporter.
+
+> **Warning**: The `exporter` type is **immutable once set** per environment. If you already configured `CLOUD_TRACE` in step 5.1, you must create a new Apigee environment to use `OPEN_TELEMETRY_COLLECTOR` instead. You **cannot** change an existing environment's exporter.
+
+#### Option A: Configure on a new environment
+
+```bash
+TOKEN=$(gcloud auth print-access-token)
+
+# Create a new environment for Datadog tracing
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -X POST \
+     "https://apigee.googleapis.com/v1/organizations/$ORG/environments" \
+     -d '{ "name": "eval-dd" }'
+
+# Attach it to the instance
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -X POST \
+     "https://apigee.googleapis.com/v1/organizations/$ORG/instances/$APIGEE_INSTANCE/attachments" \
+     -d '{ "environment": "eval-dd" }'
+
+# Configure TraceConfig to send to Datadog OTLP endpoint
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -X PATCH \
+     "https://apigee.googleapis.com/v1/organizations/$ORG/environments/eval-dd/traceConfig?updateMask=endpoint,samplingConfig,exporter" \
+     -d '{
+       "exporter": "OPEN_TELEMETRY_COLLECTOR",
+       "endpoint": "https://otlp.datadoghq.com/v1/traces",
+       "samplingConfig": {
+         "sampler": "PROBABILITY",
+         "samplingRate": 0.5
+       }
+     }'
+
+# Deploy the proxy to the new environment
+"$HOME/.apigeecli/bin/apigeecli" apis deploy \
+    -n jek-apigee-api-v1 \
+    -e eval-dd \
+    -v 1 \
+    -o "$ORG" \
+    --token "$(gcloud auth print-access-token)" \
+    --ovr
+```
+
+#### Option B: Configure on the existing environment (only if `CLOUD_TRACE` was NOT set)
+
+```bash
+TOKEN=$(gcloud auth print-access-token)
+
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -X PATCH \
+     "https://apigee.googleapis.com/v1/organizations/$ORG/environments/$APIGEE_ENV/traceConfig?updateMask=endpoint,samplingConfig,exporter" \
+     -d '{
+       "exporter": "OPEN_TELEMETRY_COLLECTOR",
+       "endpoint": "https://otlp.datadoghq.com/v1/traces",
+       "samplingConfig": {
+         "sampler": "PROBABILITY",
+         "samplingRate": 0.5
+       }
+     }'
+```
+
+> **Note**: Apigee's `OPEN_TELEMETRY_COLLECTOR` exporter sends trace data with the OTLP protocol. The `endpoint` field points directly to Datadog's OTLP ingest URL. Authentication headers (`dd-api-key=<KEY>,dd-otlp-source=datadog`) may need to be configured via Apigee's distributed trace overrides or an intermediary OTel Collector if the Apigee TraceConfig does not support custom headers natively.
+
+#### Verify in Datadog
+
+1. Send traffic: `curl -k -s "https://${LB_IP}.nip.io/api/"`
+2. Go to **Datadog** → **APM** → **Traces**
+3. Filter by service name or trace ID to find Apigee-generated spans
+
+### 5.5 Instrument the Spring Boot Application
 
 #### Option A: OTel Java Agent (Zero-Code, Recommended)
 
@@ -1054,7 +1130,7 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 </dependency>
 ```
 
-### 5.5 Deploy an OTel Collector Sidecar
+### 5.6 Deploy an OTel Collector Sidecar
 
 The Collector receives OTLP from the Spring Boot app and exports to Cloud Trace.
 
@@ -1141,7 +1217,7 @@ kubectl create configmap otel-collector-config \
     --from-file=config.yaml=otel-collector-config.yaml
 ```
 
-### 5.6 Workload Identity for Cloud Trace
+### 5.7 Workload Identity for Cloud Trace
 
 ```bash
 # Create a GCP service account for the Spring Boot workload
@@ -1165,7 +1241,7 @@ kubectl annotate serviceaccount springboot-sa \
     iam.gke.io/gcp-service-account=jek-springboot-trace-sa@$PROJECT.iam.gserviceaccount.com
 ```
 
-### 5.7 End-to-End Trace Flow
+### 5.8 End-to-End Trace Flow
 
 ```
 Android App                    Apigee X                      Spring Boot (GKE)
@@ -1189,7 +1265,7 @@ Android App                    Apigee X                      Spring Boot (GKE)
                     under the same TRACE_ID
 ```
 
-### 5.8 Viewing Traces
+### 5.9 Viewing Traces
 
 1. Go to **Cloud Console** → **Trace** → **Trace Explorer**
 2. Filter by:
