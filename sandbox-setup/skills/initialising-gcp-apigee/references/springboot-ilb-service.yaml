@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: springboot-ilb
+  annotations:
+    networking.gke.io/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  selector:
+    app: springboot-backend
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
