@@ -771,7 +771,7 @@ The proxy bundle files have been created at `apiproxy/` relative to this guide:
 
 ```
 apiproxy/
-├── my-api.xml              # Root proxy descriptor
+├── jek-apigee-api-v1.xml              # Root proxy descriptor
 ├── proxies/
 │   └── default.xml         # ProxyEndpoint (receives requests on /api)
 ├── targets/
@@ -780,7 +780,7 @@ apiproxy/
 ```
 
 Key files:
-- `apiproxy/my-api.xml` — proxy name and base path (`/api`)
+- `apiproxy/jek-apigee-api-v1.xml` — proxy name and base path (`/api`)
 - `apiproxy/proxies/default.xml` — incoming request routing
 - `apiproxy/targets/default.xml` — forwards to endpoint attachment host `http://7.0.4.2:80` (from Phase 3.4)
 
@@ -819,14 +819,14 @@ curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.s
 
 # Import the proxy bundle (note the revision number in the output)
 "$HOME/.apigeecli/bin/apigeecli" apis create bundle \
-    -n my-api \
+    -n jek-apigee-api-v1 \
     -f ./apiproxy \
     -o "$ORG" \
     --token "$(gcloud auth print-access-token)"
 
 # Deploy to the environment (set -v to the revision number from the output above)
 "$HOME/.apigeecli/bin/apigeecli" apis deploy \
-    -n my-api \
+    -n jek-apigee-api-v1 \
     -e "$APIGEE_ENV" \
     -v 1 \
     -o "$ORG" \
@@ -840,11 +840,11 @@ curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.s
 
 ```bash
 # Zip the proxy bundle
-cd apiproxy && zip -r ../my-api-proxy.zip . && cd ..
+cd apiproxy && zip -r ../jek-apigee-api-v1-proxy.zip . && cd ..
 
 gcloud alpha apigee archives deploy \
     --environment="$APIGEE_ENV" \
-    --source=./my-api-proxy.zip \
+    --source=./jek-apigee-api-v1-proxy.zip \
     --organization="$ORG"
 ```
 
@@ -853,7 +853,7 @@ gcloud alpha apigee archives deploy \
 ```bash
 # List deployed proxies
 "$HOME/.apigeecli/bin/apigeecli" apis listdeploy \
-    -n my-api \
+    -n jek-apigee-api-v1 \
     -o "$ORG" \
     --token "$(gcloud auth print-access-token)"
 
@@ -884,7 +884,7 @@ gcloud compute backend-services get-health jek-apigee-proxy-backend \
 
 # 4. Verify the Apigee proxy is deployed
 "$HOME/.apigeecli/bin/apigeecli" apis listdeploy \
-    -n my-api \
+    -n jek-apigee-api-v1 \
     -o "$ORG" \
     --token "$(gcloud auth print-access-token)"
 
@@ -905,7 +905,7 @@ kubectl get svc springboot-ilb
    - Verify backends show **Healthy** (green checkmarks)
    - Check the **Frontend** section shows your external IP and HTTPS:443
 
-2. **Apigee dashboard**: Go to **Apigee** → **API proxies** → click `my-api`
+2. **Apigee dashboard**: Go to **Apigee** → **API proxies** → click `jek-apigee-api-v1`
    - Verify deployment status shows **Deployed** in the `eval` environment
    - Click **Debug** → **Start Debug Session** → trigger a request with curl → view the request/response flow through Apigee policies
 
@@ -966,7 +966,7 @@ curl -s \
     -X POST \
     "https://apigee.googleapis.com/v1/organizations/$PROJECT/environments/$APIGEE_ENV/traceConfig/overrides" \
     -d '{
-      "apiProxy": "my-api",
+      "apiProxy": "jek-apigee-api-v1",
       "samplingConfig": {
         "sampler": "PROBABILITY",
         "samplingRate": 1.0
@@ -1275,7 +1275,7 @@ kubectl delete configmap otel-collector-config --ignore-not-found
 # --- Apigee Proxy ---
 # Undeploy the proxy
 "$HOME/.apigeecli/bin/apigeecli" apis undeploy \
-    -n my-api \
+    -n jek-apigee-api-v1 \
     -e "$APIGEE_ENV" \
     -v 1 \
     -o "$ORG" \
@@ -1283,7 +1283,7 @@ kubectl delete configmap otel-collector-config --ignore-not-found
 
 # Delete the proxy
 "$HOME/.apigeecli/bin/apigeecli" apis delete \
-    -n my-api \
+    -n jek-apigee-api-v1 \
     -o "$ORG" \
     --token "$(gcloud auth print-access-token)"
 

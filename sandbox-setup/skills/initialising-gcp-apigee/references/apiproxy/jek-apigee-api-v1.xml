@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<APIProxy revision="1" name="my-api">
-  <DisplayName>My API</DisplayName>
+<APIProxy revision="1" name="jek-apigee-api-v1">
+  <DisplayName>Jek Apigee API V1</DisplayName>
   <Description>API proxy for Spring Boot backend on GKE</Description>
   <BasePaths>/api</BasePaths>
 </APIProxy>
