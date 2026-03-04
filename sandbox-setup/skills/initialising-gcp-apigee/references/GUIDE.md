@@ -1021,15 +1021,185 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ![](../assets/proof-gcp-apigee-debug.png)
 
-### 5.4 (Alternative) Send Apigee Traces Directly to Datadog via OTLP
+### 5.4 Send Apigee Traces to Datadog via an Intermediate OTel Collector
 
-Instead of exporting Apigee traces to Cloud Trace (step 5.1), you can send them directly to Datadog's OTLP ingest endpoint. This uses Apigee's `OPEN_TELEMETRY_COLLECTOR` exporter.
+Apigee’s `OPEN_TELEMETRY_COLLECTOR` exporter does **not** support custom HTTP headers (like `dd-api-key`). To send Apigee traces to Datadog, we deploy an intermediate OpenTelemetry Collector on a GCE VM that:
 
-> **Warning**: The `exporter` type is **immutable once set** per environment. If you already configured `CLOUD_TRACE` in step 5.1, you must create a new Apigee environment to use `OPEN_TELEMETRY_COLLECTOR` instead. You **cannot** change an existing environment's exporter.
+1. **Receives** traces from Apigee over OTLP HTTP (no auth needed — internal VPC traffic)
+2. **Forwards** them to Datadog’s OTLP endpoint (with the required `dd-api-key` header)
 
-#### Option A: Configure on a new environment
+**Flow**: Apigee → OTel Collector (GCE, `jek-vpc`) → `otlp.datadoghq.com` → Datadog APM
+
+> **Why not point Apigee directly at Datadog?** The Apigee `TraceConfig` API only accepts `exporter`, `endpoint`, and `samplingConfig` — there is no field for custom headers or TLS certificates. Since Datadog requires `dd-api-key` in the request headers, an intermediate collector is the standard OpenTelemetry pattern.
+
+#### 5.4.1 Create a GCE VM for the OTel Collector
+
+The VM must be on `jek-vpc` so Apigee can reach it via VPC peering. For sandbox simplicity we give it an external IP so it can reach `otlp.datadoghq.com` without Cloud NAT.
 
 ```bash
+gcloud compute instances create jek-otel-collector \
+    --zone=asia-southeast1-b \
+    --machine-type=e2-medium \
+    --image-family=ubuntu-2404-lts-amd64 \
+    --image-project=ubuntu-os-cloud \
+    --network=jek-vpc \
+    --subnet=jek-gke-subnet-in-jek-vpc \
+    --tags=jek-otel-collector \
+    --project=$PROJECT
+```
+
+#### 5.4.2 Create a firewall rule for Apigee → OTel Collector
+
+Allow Apigee’s peered IP range to reach the collector on port 4318 (OTLP HTTP).
+
+```bash
+# Get the Apigee peering range allocated in step 2.2
+APIGEE_RANGE=$(gcloud compute addresses describe jek-google-managed-apigee \
+    --global --project=$PROJECT \
+    --format="csv[no-heading](address,prefixLength)" | tr ‘,’ ‘/’)
+
+gcloud compute firewall-rules create jek-allow-apigee-to-otel \
+    --network=jek-vpc \
+    --allow=tcp:4318 \
+    --source-ranges="$APIGEE_RANGE" \
+    --target-tags=jek-otel-collector \
+    --description="Allow Apigee peering range to reach OTel Collector OTLP HTTP" \
+    --project=$PROJECT
+```
+
+#### 5.4.3 Install the OpenTelemetry Collector
+
+First, ensure the existing IAP SSH firewall rule also targets our OTel Collector VM (it was originally created for the Apigee MIG instances only):
+
+```bash
+gcloud compute firewall-rules update jek-allow-iap-ssh \
+    --target-tags=jek-apigee-mig,jek-otel-collector \
+    --project=$PROJECT
+```
+
+Now SSH into the VM via IAP tunnel:
+
+```bash
+gcloud compute ssh jek-otel-collector --zone=asia-southeast1-b --project=$PROJECT --tunnel-through-iap
+```
+
+Then on the VM:
+
+```bash
+sudo apt-get update && sudo apt-get -y install wget
+wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.147.0/otelcol_0.147.0_linux_amd64.deb
+sudo dpkg -i otelcol_0.147.0_linux_amd64.deb
+```
+
+Check status:
+```bash
+sudo systemctl restart otelcol
+
+sudo journalctl -u otelcol -f 
+```
+
+#### 5.4.4 Configure the OTel Collector
+
+Edit the collector config to receive OTLP traces and forward them to Datadog:
+
+```bash
+sudo cp /etc/otelcol/config.yaml /etc/otelcol/backup-config-v1.yaml
+
+sudo rm /etc/otelcol/config.yaml
+
+sudo nano /etc/otelcol/config.yaml
+```
+
+```yml
+extensions:
+  health_check:
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Collect own metrics
+  prometheus:
+    config:
+      scrape_configs:
+      - job_name: 'otel-collector'
+        scrape_interval: 10s
+        static_configs:
+        - targets: ['0.0.0.0:8888']
+
+processors:
+  batch:
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlp_http:
+    traces_endpoint: "https://otlp.datadoghq.com/v1/traces"
+    # metrics_endpoint: "https://otlp.datadoghq.com/v1/metrics"
+    # logs_endpoint: "https://otlp.datadoghq.com/v1/logs"
+    headers:
+      "dd-api-key": "<REPLACE-WITH-YOUR-DATADOG-API-KEY>"
+      "dd-otlp-source": "datadog"
+    sending_queue:
+      # Replaces batch processor (recommended)
+      batch:
+
+service:
+
+  pipelines:
+
+    traces:
+      receivers: [otlp]
+      exporters: [otlp_http, debug]
+
+    # metrics:
+    #   receivers: [otlp, prometheus]
+    #   processors: [batch]
+    #   exporters: [debug]
+
+    # logs:
+    #   receivers: [otlp]
+    #   processors: [batch]
+    #   exporters: [debug]
+
+  extensions: [health_check, pprof, zpages]
+```
+
+> **Important**: Replace `<REPLACE-WITH-YOUR-DATADOG-API-KEY>` with your actual Datadog API key.
+
+Restart the collector and verify it starts without errors:
+
+```bash
+sudo systemctl restart otelcol
+sudo systemctl status otelcol        # Should show "active (running)"
+sudo journalctl -u otelcol -f        # Watch logs — Ctrl+C to exit
+```
+
+Then exit the SSH session:
+
+```bash
+exit
+```
+
+#### 5.4.5 Point Apigee TraceConfig to the OTel Collector
+
+> **Warning**: The `exporter` type is **immutable once set** per environment. Since the `eval` environment already has `CLOUD_TRACE` configured (step 5.1), we create a new environment `eval-dd` for the `OPEN_TELEMETRY_COLLECTOR` exporter.
+
+```bash
+# Get the OTel Collector’s internal IP
+OTEL_IP=$(gcloud compute instances describe jek-otel-collector \
+    --zone=asia-southeast1-b --project=$PROJECT \
+    --format="value(networkInterfaces[0].networkIP)")
+echo "OTel Collector internal IP: $OTEL_IP"
+
 TOKEN=$(gcloud auth print-access-token)
 
 # Create a new environment for Datadog tracing
@@ -1037,28 +1207,28 @@ curl -s -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
      -X POST \
      "https://apigee.googleapis.com/v1/organizations/$ORG/environments" \
-     -d '{ "name": "eval-dd" }'
+     -d ‘{ "name": "eval-dd" }’
 
-# Attach it to the instance
+# Attach it to the instance (this may take a few minutes)
 curl -s -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
      -X POST \
      "https://apigee.googleapis.com/v1/organizations/$ORG/instances/$APIGEE_INSTANCE/attachments" \
-     -d '{ "environment": "eval-dd" }'
+     -d ‘{ "environment": "eval-dd" }’
 
-# Configure TraceConfig to send to Datadog OTLP endpoint
+# Configure TraceConfig to send to the OTel Collector
 curl -s -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
      -X PATCH \
      "https://apigee.googleapis.com/v1/organizations/$ORG/environments/eval-dd/traceConfig?updateMask=endpoint,samplingConfig,exporter" \
-     -d '{
-       "exporter": "OPEN_TELEMETRY_COLLECTOR",
-       "endpoint": "https://otlp.datadoghq.com/v1/traces",
-       "samplingConfig": {
-         "sampler": "PROBABILITY",
-         "samplingRate": 0.5
+     -d "{
+       \"exporter\": \"OPEN_TELEMETRY_COLLECTOR\",
+       \"endpoint\": \"http://${OTEL_IP}:4318\",
+       \"samplingConfig\": {
+         \"sampler\": \"PROBABILITY\",
+         \"samplingRate\": 0.5
        }
-     }'
+     }"
 
 # Deploy the proxy to the new environment
 "$HOME/.apigeecli/bin/apigeecli" apis deploy \
@@ -1070,44 +1240,22 @@ curl -s -H "Authorization: Bearer $TOKEN" \
     --ovr
 ```
 
-#### Option B: Configure on the existing environment (only if `CLOUD_TRACE` was NOT set)
+#### 5.4.6 Verify traces in Datadog
+
+1. Send traffic through the proxy:
 
 ```bash
-TOKEN=$(gcloud auth print-access-token)
-
-curl -s -H "Authorization: Bearer $TOKEN" \
-     -H "Content-Type: application/json" \
-     -X PATCH \
-     "https://apigee.googleapis.com/v1/organizations/$ORG/environments/$APIGEE_ENV/traceConfig?updateMask=endpoint,samplingConfig,exporter" \
-     -d '{
-       "exporter": "OPEN_TELEMETRY_COLLECTOR",
-       "endpoint": "https://otlp.datadoghq.com/v1/traces",
-       "samplingConfig": {
-         "sampler": "PROBABILITY",
-         "samplingRate": 0.5
-       }
-     }'
+curl -k -s "https://${LB_IP}.nip.io/api/"
 ```
 
-> **Note**: Apigee's `OPEN_TELEMETRY_COLLECTOR` exporter sends trace data with the OTLP protocol. You need send to `OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.datadoghq.com/v1/traces` for Datadog US1 data center with authentication headers i.e. `OTEL_EXPORTER_OTLP_HEADERS=dd-api-key=<REPLACE-WITH-YOUR-DATADOG-API-KEY>,dd-otlp-source=datadog`. Remember to replace it with Datadog API key accordingly.
+2. SSH into the OTel Collector and check the logs for received traces:
 
-> However, Apigee’s TraceConfig does not natively support custom HTTP/gRPC headers (like dd-api-key or dd-otlp-source) for the OPEN_TELEMETRY_COLLECTOR exporter. While Apigee does support OpenTelemetry as an exporter, its native implementation is very bare-bones. If you look at the Apigee `TraceConfig` API schema, it only accepts three fields:
+```bash
+gcloud compute ssh jek-otel-collector --zone=asia-southeast1-b --project=$PROJECT --tunnel-through-iap \
+    --command="sudo journalctl -u otelcol --since=’5 minutes ago’ --no-pager"
+```
 
-> `exporter` (e.g., `OPEN_TELEMETRY_COLLECTOR`)
-
-> `endpoint` (a string for the destination URL)
-
-> `samplingConfig` (your sampling rate and sampler type)
-
-> Because there is no configuration block for authentication, headers, or TLS certificates, you cannot point Apigee directly to a vendor like Datadog that requires API keys in the headers.
-
-> So the Recommended Solution: Use an Intermediate Collector, to get your Apigee trace data into Datadog, the standard OpenTelemetry architectural pattern is to deploy an intermediate OpenTelemetry (OTel) Collector within your infrastructure (e.g., on GKE, Compute Engine, or Cloud Run).
-
-#### Verify in Datadog
-
-1. Send traffic: `curl -k -s "https://${LB_IP}.nip.io/api/"`
-2. Go to **Datadog** → **APM** → **Traces**
-3. Filter by service name or trace ID to find Apigee-generated spans
+3. Go to **Datadog** → **APM** → **Traces** and filter for Apigee-generated spans
 
 ### 5.5 Instrument the Spring Boot Application
 
@@ -1383,6 +1531,37 @@ TOKEN=$(gcloud auth print-access-token)
 ### Phase 5 Resources (Telemetry)
 
 ```bash
+# --- OTel Collector on GCE (step 5.4) ---
+
+# Detach eval-dd environment from the Apigee instance
+TOKEN=$(gcloud auth print-access-token)
+
+# Find the attachment name for eval-dd
+ATTACHMENT_NAME=$(curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://apigee.googleapis.com/v1/organizations/$ORG/instances/$APIGEE_INSTANCE/attachments" \
+    | python3 -c "import sys,json; attachments=json.load(sys.stdin).get('attachments',[]); print(next((a['name'] for a in attachments if a.get('environment')=='eval-dd'),''))")
+
+if [ -n "$ATTACHMENT_NAME" ]; then
+  curl -s -H "Authorization: Bearer $TOKEN" -X DELETE \
+    "https://apigee.googleapis.com/v1/$ATTACHMENT_NAME"
+  echo "Detached eval-dd from instance. Waiting 60s for detachment to complete..."
+  sleep 60
+fi
+
+# Delete eval-dd environment
+curl -s -H "Authorization: Bearer $TOKEN" -X DELETE \
+    "https://apigee.googleapis.com/v1/organizations/$ORG/environments/eval-dd"
+
+# Delete OTel Collector GCE instance
+gcloud compute instances delete jek-otel-collector \
+    --zone=asia-southeast1-b --project="$PROJECT" --quiet
+
+# Delete firewall rule
+gcloud compute firewall-rules delete jek-allow-apigee-to-otel \
+    --project="$PROJECT" --quiet
+
+# --- Workload Identity & Service Account ---
+
 # Remove Workload Identity binding
 gcloud iam service-accounts remove-iam-policy-binding \
     jek-springboot-trace-sa@$PROJECT.iam.gserviceaccount.com \
