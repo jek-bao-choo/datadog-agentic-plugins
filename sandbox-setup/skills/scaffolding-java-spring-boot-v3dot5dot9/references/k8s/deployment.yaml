@@ -16,12 +16,39 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-secret
+      initContainers:
+        - name: datadog-lib-java-init
+          image: gcr.io/datadoghq/dd-lib-java-init:latest
+          command:
+            - sh
+            - -c
+            - cp /datadog-init/package/dd-java-agent.jar /datadog-lib/dd-java-agent.jar
+          volumeMounts:
+            - name: datadog-lib
+              mountPath: /datadog-lib
       containers:
         - name: springboot3dot5dot9-sandbox
           image: asia-southeast1-docker.pkg.dev/datadog-ese-sandbox/jek-java-apps/springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT
           ports:
             - containerPort: 8080
               protocol: TCP
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/datadog-lib/dd-java-agent.jar"
+            - name: DD_SERVICE
+              value: "springboot3dot5dot9-sandbox"
+            - name: DD_ENV
+              value: "sandbox"
+            - name: DD_AGENT_HOST
+              value: "datadog-agent.default.svc.cluster.local"
+            - name: DD_PROFILING_ENABLED
+              value: "auto"
+            - name: DD_LOGS_INJECTION
+              value: "true"
+            - name: DD_TRACE_SAMPLE_RATE
+              value: "1"
+            - name: DD_RUNTIME_METRICS_ENABLED
+              value: "true"
           # Startup probe: gives JVM up to 70s to boot (10s delay + 12 * 5s)
           startupProbe:
             httpGet:
@@ -56,6 +83,10 @@ spec:
           volumeMounts:
             - name: app-logs
               mountPath: /app/logs
+            - name: datadog-lib
+              mountPath: /datadog-lib
       volumes:
         - name: app-logs
+          emptyDir: {}
+        - name: datadog-lib
           emptyDir: {}
