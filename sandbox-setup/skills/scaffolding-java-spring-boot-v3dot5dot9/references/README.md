@@ -54,7 +54,7 @@ references/
 │       └── java/com/jek/.../
 │           └── ApiEndpointTest.java             # Playwright integration tests
 ├── k8s/
-│   ├── deployment.yaml                          # Deployment with health probes
+│   ├── deployment.yaml                          # Deployment with health probes + Datadog APM tracer
 │   └── service.yaml                             # ClusterIP Service (80 → 8080)
 ├── logs/
 │   └── app.log                                  # PUT endpoint logs (JSON)
@@ -165,11 +165,183 @@ The Kubernetes deployment includes:
 - **2 replicas** for availability
 - **Startup probe** (up to 70s for JVM boot), **liveness probe**, and **readiness probe** on `/actuator/health`
 - **Resource limits**: 256Mi–512Mi memory, 250m–1 CPU
-- **emptyDir volume** for `/app/logs`
+- **emptyDir volumes** for `/app/logs` and `/datadog-lib`
+- **Datadog APM tracer** via init container injection (see [Datadog APM Tracing](#datadog-apm-tracing-manual-init-container-injection) section)
 - **ClusterIP Service** mapping port 80 → 8080
 - **imagePullSecrets** referencing `ghcr-secret` (for clusters with restricted egress; not needed when using Artifact Registry on GKE)
 
 **Note**: The POST endpoint's syslog appender targets `localhost:514`, which won't exist in a K8s pod — it will fail silently. This only affects the POST endpoint's syslog logging; the endpoint itself still works.
+
+## Datadog APM Tracing (Manual Init Container Injection)
+
+The deployment uses **manual init container patching** to inject the Datadog Java tracer (`dd-java-agent.jar`) into the Spring Boot pods. This approach is preferred over the Datadog admission controller webhook, which automatically excludes the namespace where the Datadog Operator/Agent is deployed (typically `default`). Manual patching gives you explicit control and works regardless of namespace.
+
+### How It Works
+
+Three pieces are added to the deployment spec:
+
+**1. Init container** — copies `dd-java-agent.jar` from Datadog's official image into a shared volume:
+
+```yaml
+initContainers:
+  - name: datadog-lib-java-init
+    image: gcr.io/datadoghq/dd-lib-java-init:latest
+    command:
+      - sh
+      - -c
+      - cp /datadog-init/package/dd-java-agent.jar /datadog-lib/dd-java-agent.jar
+    volumeMounts:
+      - name: datadog-lib
+        mountPath: /datadog-lib
+```
+
+**2. Environment variables** — on the app container, `JAVA_TOOL_OPTIONS` attaches the agent, and `DD_*` vars configure the tracer:
+
+```yaml
+env:
+  - name: JAVA_TOOL_OPTIONS
+    value: "-javaagent:/datadog-lib/dd-java-agent.jar"
+  - name: DD_SERVICE
+    value: "springboot3dot5dot9-sandbox"
+  - name: DD_ENV
+    value: "sandbox"
+  - name: DD_AGENT_HOST
+    value: "datadog-agent.default.svc.cluster.local"
+  - name: DD_PROFILING_ENABLED
+    value: "auto"
+  - name: DD_LOGS_INJECTION
+    value: "true"
+  - name: DD_TRACE_SAMPLE_RATE
+    value: "1"
+  - name: DD_RUNTIME_METRICS_ENABLED
+    value: "true"
+```
+
+**3. Shared volume** — an `emptyDir` volume mounted in both the init container and app container:
+
+```yaml
+# In the app container's volumeMounts:
+- name: datadog-lib
+  mountPath: /datadog-lib
+
+# In the volumes section:
+- name: datadog-lib
+  emptyDir: {}
+```
+
+### Key Details
+
+- **Init image**: `gcr.io/datadoghq/dd-lib-java-init:latest` — the jar is at `/datadog-init/package/dd-java-agent.jar` inside this image
+- **DD_AGENT_HOST**: Points to the `datadog-agent` ClusterIP Service FQDN (`datadog-agent.default.svc.cluster.local`), which load-balances across all DaemonSet agent pods on port 8126. If the Datadog Agent DaemonSet exposes port 8126 via `hostPort`, you can use `status.hostIP` instead (via a `fieldRef`) to route traces directly to the node-local agent
+- **DD_TRACE_SAMPLE_RATE**: Set to `1` (100%) for sandbox/testing. Lower this in production
+
+### Why Manual Init Container Instead of the Admission Controller Webhook
+
+The Datadog Operator manages a `MutatingWebhookConfiguration` called `datadog-webhook` that can auto-inject the Java tracer on pod creation. However, the operator **always excludes its own namespace** from the webhook's `namespaceSelector`. If the Datadog Agent is deployed in the `default` namespace, pods in `default` will never be intercepted by the webhook — even with `enabledNamespaces: ["default"]` in the `DatadogAgent` CR.
+
+Manual init container patching avoids this limitation entirely and has the added benefit of making the instrumentation explicit and version-controlled in the deployment manifest.
+
+### Applying and Verifying
+
+```bash
+# Apply the deployment (init container + env vars are already in k8s/deployment.yaml)
+kubectl apply -f k8s/
+
+# Wait for rollout
+kubectl rollout status deployment/springboot3dot5dot9-sandbox
+
+# Verify init container exists
+kubectl get pods -l app=springboot3dot5dot9-sandbox \
+  -o jsonpath='{.items[0].spec.initContainers[*].name}'
+# Expected: datadog-lib-java-init
+
+# Verify DD env vars
+kubectl get pods -l app=springboot3dot5dot9-sandbox \
+  -o jsonpath='{range .items[0].spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}' \
+  | grep -E 'DD_|JAVA_TOOL'
+
+# Check tracer initialization in pod logs (look for agent_error: false)
+kubectl logs -l app=springboot3dot5dot9-sandbox --tail=30 \
+  | grep "DATADOG TRACER CONFIGURATION"
+```
+
+### Generating Traffic and Viewing Traces
+
+```bash
+# Port-forward to the service
+kubectl port-forward svc/springboot3dot5dot9-sandbox 8080:80 &
+PF_PID=$!
+sleep 2
+
+# Hit all three endpoints for ~2 minutes (60 iterations × 3 endpoints = 180 requests)
+# This sustained traffic ensures enough data for APM traces and runtime metrics to populate
+for i in $(seq 1 60); do
+  curl -s http://localhost:8080/api/data > /dev/null
+  curl -s -X POST http://localhost:8080/api/submit \
+    -H "Content-Type: application/json" \
+    -d "{\"key\":\"test\",\"iteration\":$i}" > /dev/null
+  curl -s -X PUT http://localhost:8080/api/update > /dev/null
+  sleep 2
+done
+
+kill $PF_PID 2>/dev/null
+```
+
+After traffic generation, verify traces are being received by the agent and DogStatsD is processing runtime metrics:
+
+```bash
+# Verify traces are received by the agent
+kubectl exec $(kubectl get pods -l app.kubernetes.io/component=agent -o name | head -1) \
+  -c agent -- agent status 2>/dev/null | grep -A 10 "Receiver (previous minute)"
+
+# Verify DogStatsD is receiving JVM runtime metrics (metric packet count should be growing)
+kubectl exec $(kubectl get pods -l app.kubernetes.io/component=agent -o name | head -1) \
+  -c agent -- agent status 2>/dev/null | grep -A 15 "DogStatsD"
+```
+
+Traces should appear in the Datadog UI under **APM > Traces**, filtered by `service:springboot3dot5dot9-sandbox` and `env:sandbox`.
+
+### JVM Runtime Metrics
+
+The Datadog Java tracer (`dd-java-agent.jar`) also collects **JVM runtime metrics** — heap memory, GC, threads, class loading — and sends them via **DogStatsD (UDP port 8125)** to the same `DD_AGENT_HOST`. The deployment sets `DD_RUNTIME_METRICS_ENABLED=true` explicitly for clarity (it defaults to `true` for Java).
+
+**How it works:**
+- The tracer sends metrics via UDP to `DD_AGENT_HOST:8125` (DogStatsD)
+- The `datadog-agent` ClusterIP Service exposes port `8125/UDP`, routing to the agent DaemonSet
+- No additional agent configuration is needed — DogStatsD is enabled by default
+
+#### Detecting and Troubleshooting JVM Memory Leaks
+
+Use these Datadog JVM metrics (emitted by `dd-java-agent` via DogStatsD) to detect and diagnose memory leaks:
+
+| Metric | What to watch for |
+|--------|-------------------|
+| `jvm.heap_memory` / `jvm.heap_memory_max` | If heap usage trends upward over time and doesn't drop after GC, suspect a leak |
+| `jvm.non_heap_memory` | Rising non-heap (Metaspace) can indicate classloader leaks |
+| `jvm.gc.old_gen_size` | Old generation growing continuously means objects aren't being collected |
+| `jvm.gc.major_collection_count` / `jvm.gc.major_collection_time` | Increasing frequency and duration of full GCs is a key leak symptom |
+| `jvm.gc.minor_collection_count` / `jvm.gc.minor_collection_time` | Young generation GC stats — compare with major GC trends |
+| `jvm.gc.eden_size` / `jvm.gc.survivor_size` | Memory pool sizes for young generation |
+| `jvm.gc.metaspace_size` | Metaspace growth — watch for continuous increase |
+| `jvm.buffer_pool.direct.used` / `jvm.buffer_pool.direct.capacity` | Direct buffer leaks (off-heap memory) |
+| `jvm.buffer_pool.mapped.used` / `jvm.buffer_pool.mapped.capacity` | Mapped buffer leaks |
+
+#### Monitoring JVM Thread Utilization
+
+| Metric | What to watch for |
+|--------|-------------------|
+| `jvm.thread_count` | Total live threads — a steadily increasing count indicates a thread leak |
+| `jvm.loaded_classes` | Class count growth can correlate with thread/classloader issues |
+| `jvm.cpu_load.process` / `jvm.cpu_load.system` | High CPU with high thread count may indicate runaway threads |
+
+#### Where to View in Datadog
+
+- **APM > Services > `springboot3dot5dot9-sandbox`** → **Runtime Metrics** sidebar (set `env` to `sandbox`) — shows pre-built graphs for heap, non-heap, GC, and threads
+- **Metrics > Explorer** → search any metric name above, filter by `service:springboot3dot5dot9-sandbox`, `env:sandbox`
+- **Dashboards** → create custom dashboards with these metrics for ongoing monitoring
+- **Monitors** → set alerts on `jvm.heap_memory` approaching `jvm.heap_memory_max`, or `jvm.thread_count` exceeding thresholds
+
+**Important**: The deployment sets `DD_ENV=sandbox`, so ensure the `env` filter in the Datadog UI is set to **`sandbox`** (not `none`). Traces and metrics will not appear if filtered by the wrong environment.
 
 ### Stopping the Application
 
@@ -694,4 +866,4 @@ This is a demonstration project for educational purposes.
 - Spring Boot: 3.5.9
 - Java: 17.0.17
 - Tomcat: 10.1.50 (embedded)
-- Last Updated: 2026-01-21
+- Last Updated: 2026-03-05
