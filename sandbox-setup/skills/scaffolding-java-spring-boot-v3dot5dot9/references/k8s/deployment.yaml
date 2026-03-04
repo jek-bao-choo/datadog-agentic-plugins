@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot3dot5dot9-sandbox
+  labels:
+    app: springboot3dot5dot9-sandbox
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: springboot3dot5dot9-sandbox
+  template:
+    metadata:
+      labels:
+        app: springboot3dot5dot9-sandbox
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: springboot3dot5dot9-sandbox
+          image: asia-southeast1-docker.pkg.dev/datadog-ese-sandbox/jek-java-apps/springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          # Startup probe: gives JVM up to 70s to boot (10s delay + 12 * 5s)
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+          # Liveness probe: restarts pod if app becomes unresponsive
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness probe: removes pod from Service if not ready
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+          volumeMounts:
+            - name: app-logs
+              mountPath: /app/logs
+      volumes:
+        - name: app-logs
+          emptyDir: {}

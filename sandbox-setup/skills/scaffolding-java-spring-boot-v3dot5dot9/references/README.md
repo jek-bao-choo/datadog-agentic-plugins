@@ -1,97 +1,4 @@
-# Spring Boot 3.5.9 REST API with Dynamic Instrumentation Log Probe and Span Probe
-
-
-### On Dynamic Instrumentation Metric Probe
-
-![](../assets/proof16.png)
-![](../assets/proof17.png)
-
----
-
-### On Dynamic Instrumentation Span Probe
-
-![](../assets/proof2.png)
-Spans are in.
-
-![](../assets/proof7.png)
-With and without dynamic instrumentation span probe.
-
-![](../assets/proof9.png)
-Two auto instrumentation spans
-
-![](../assets/proof8.png)
-Notice the difference in the span attributes / tags? But what does this mean?
-
-![](../assets/proof10.png)
-It gives us the ability to create new spans without Custom Instrumentation code changes when the auto instrumentation isn't capturing the spans we need. Therefore, we can debug more precisely.
-
-![](../assets/proof11.png)
-Here is what I selected in my Span Probe setup. Easy - definitely easier than custom instrumentation with code changes. It's also timely, allowing you to adjust whenever you want without redeployment.
-
----
-
-### On Dynamic Instrumentation Span Tag Probe
-
-![](../assets/proof12.png)
-
-![](../assets/proof13.png)
-
-![](../assets/proof14.png)
-
-![](../assets/proof15.png)
-
----
-
-
-### On Dynamic Instrumentation Log Probe
-
-![](../assets/proof1.png)
-Sending of logs (FileAppender).
-
-![](../assets/proof3.png)
-With dynamic instrumentation for logs
-
-![](../assets/proof6.png)
-Here is the result of how the logs look like from dynamic instrumentation log probe. 
-
-![](../assets/proof5.png)
-Here is what it looks like when I am setting it up.
-
-![](../assets/proof4.png)
-Here is what it looks like after I set it up dynamic instrumentation log probe.
-
-#### The benefit of Dynamic Instrumentation Log Probe
-
-**Add Logs Without Code Changes or Redeployment**
-- Insert logs into running production applications on-the-fly
-- No need to modify source code, rebuild, or redeploy
-- Perfect for debugging production issues without downtime
-
-**Zero Permanent Code Pollution**
-- Temporary logging that you can enable/disable from the Datadog UI
-- Keeps your codebase clean and maintainable
-- No debug logs cluttering your source code
-
-**Safe for Production**
-- Rate limiting: Max 5,000 executions/second per instance
-- Conditional execution: Only log when specific conditions are met (e.g., `statusCode >= 400`)
-- Low overhead: Minimal performance impact
-
-**Dynamic Debugging**
-- Capture variable values, method arguments, and object properties in real-time
-- See exact values when errors occur without guessing
-
-**Faster Troubleshooting**
-
-Traditional approach (slow):
-1. User reports bug → Add debug logs to code → Commit, build, deploy → Wait for issue → Remove logs, redeploy
-2. **Total time: Hours or days**
-
-With Log Probes (fast):
-1. User reports bug → Add log probe in Datadog UI (30 seconds) → See debug data immediately → Delete probe when done
-2. **Total time: Minutes**
-
-**Real-World Example**: Users report intermittent 500 errors on PUT endpoint. Instead of redeploying with debug logs, create a probe with condition `statusCode >= 500` and message `"Error - Status: {statusCode}, Data: {responseData}"`. See logs immediately when the error occurs.
+# Spring Boot 3.5.9 REST API
 
 ## Overview
 
@@ -116,8 +23,10 @@ All endpoints randomly return HTTP status codes based on probability:
 
 ## Prerequisites
 
-- **Java 17** or higher (OpenJDK 17.0.17 recommended)
-- **Maven 3.6.3+** (Maven wrapper included, so local Maven installation optional)
+- **Java 17** or higher (OpenJDK 17.0.17 recommended) — not needed if using Docker
+- **Maven 3.6.3+** (Maven wrapper included, so local Maven installation optional) — not needed if using Docker
+- **Docker** (optional) — for containerized builds and running
+- **kubectl** (optional) — for Kubernetes deployment
 - **Operating System**: macOS, Linux, or Windows
 
 Verify Java installation:
@@ -129,7 +38,7 @@ Should show: openjdk version "17.0.17" or higher
 ## Project Structure
 
 ```
-springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/
+references/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/jek/.../
@@ -144,10 +53,15 @@ springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/
 │   └── test/
 │       └── java/com/jek/.../
 │           └── ApiEndpointTest.java             # Playwright integration tests
+├── k8s/
+│   ├── deployment.yaml                          # Deployment with health probes
+│   └── service.yaml                             # ClusterIP Service (80 → 8080)
 ├── logs/
 │   └── app.log                                  # PUT endpoint logs (JSON)
 ├── target/
 │   └── *.jar                                    # Compiled JAR file
+├── Dockerfile                                   # Multi-stage build (JDK → JRE)
+├── .dockerignore                                # Excludes .git/, target/, logs/
 ├── pom.xml                                      # Maven dependencies
 ├── mvnw                                         # Maven wrapper (Unix)
 ├── mvnw.cmd                                     # Maven wrapper (Windows)
@@ -207,10 +121,62 @@ Started Springboot3dot5dot9...Application in X.XXX seconds
 java -jar target/springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback-0.0.1-SNAPSHOT.jar
 ```
 
+### Option 3: Running with Docker
+
+```bash
+# Build the Docker image (multi-stage: JDK build + JRE runtime)
+docker build -t asia-southeast1-docker.pkg.dev/datadog-ese-sandbox/jek-java-apps/springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT .
+
+# Run the container
+docker run -p 8080:8080 asia-southeast1-docker.pkg.dev/datadog-ese-sandbox/jek-java-apps/springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT
+```
+
+The Docker image:
+- Uses **multi-stage build** (JDK 17 for build, JRE 17 for runtime — smaller image)
+- Runs as **non-root user** (`appuser`) for security
+- Uses `-XX:MaxRAMPercentage=75.0` so heap scales with container memory limits
+- Caches Maven dependencies in a separate layer for faster rebuilds
+
+The image is also available on **ghcr.io** as a public package:
+- `ghcr.io/jek-bao-choo/springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT`
+- When pushing a new image to ghcr.io, make it public after the first push: go to https://github.com/users/jek-bao-choo/packages/container/package/springboot3dot5dot9-sandbox → Package settings → Danger Zone → Change package visibility → Public. Subsequent pushes to the same package name remain public.
+
+### Option 4: Running on Kubernetes
+
+```bash
+# Build for linux/amd64 (required when building on Apple Silicon for GKE)
+docker buildx build --platform linux/amd64 \
+  -t asia-southeast1-docker.pkg.dev/datadog-ese-sandbox/jek-java-apps/springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT \
+  --push .
+
+# Deploy all K8s resources (deployment, service) to default namespace
+kubectl apply -f k8s/
+
+# Verify deployment
+kubectl rollout status deployment/springboot3dot5dot9-sandbox
+kubectl get pods
+
+# Access via port-forward
+kubectl port-forward svc/springboot3dot5dot9-sandbox 8080:80
+curl http://localhost:8080/api/data
+```
+
+The Kubernetes deployment includes:
+- **2 replicas** for availability
+- **Startup probe** (up to 70s for JVM boot), **liveness probe**, and **readiness probe** on `/actuator/health`
+- **Resource limits**: 256Mi–512Mi memory, 250m–1 CPU
+- **emptyDir volume** for `/app/logs`
+- **ClusterIP Service** mapping port 80 → 8080
+- **imagePullSecrets** referencing `ghcr-secret` (for clusters with restricted egress; not needed when using Artifact Registry on GKE)
+
+**Note**: The POST endpoint's syslog appender targets `localhost:514`, which won't exist in a K8s pod — it will fail silently. This only affects the POST endpoint's syslog logging; the endpoint itself still works.
+
 ### Stopping the Application
 
 - **If running in foreground**: Press `Ctrl+C`
 - **If running in background**: `pkill -f spring-boot` or `pkill -f springboot3dot5dot9`
+- **If running in Docker**: `docker stop <container-id>`
+- **If running on Kubernetes**: `kubectl delete -f k8s/`
 
 ## API Endpoints
 
@@ -486,65 +452,128 @@ kill <PID>
 pkill -f springboot3dot5dot9
 ```
 
-## Running as systemd Service (Ubuntu)
 
-For production deployments, running as a systemd service is recommended.
+## Collect JMX metrics
 
-### Create Service File
+This application includes **Spring Boot Actuator** with JMX and JVM metrics enabled by default. The `spring-boot-starter-actuator` dependency and metric configuration are already included — no additional setup is required.
+
+Once the application is running, JVM metrics (memory, threads, GC, classes) are exposed via HTTP at `/actuator/metrics` and via JMX.
+
+### Checking if JMX is Enabled
+
+**Method 1: Check Actuator Endpoints**
+```bash
+# Verify Actuator is responding
+curl http://localhost:8080/actuator
+
+# List all available metrics
+curl http://localhost:8080/actuator/metrics
+```
+
+**Method 2: Check if JMX Port is Listening**
+```bash
+# While your Java app is running, check for JMX port (default 9010 or configured port)
+netstat -an | grep 9010
+# or
+lsof -i :9010
+```
+
+**Method 3: Check JVM Arguments**
+```bash
+# Look for JMX-related arguments in the running process
+ps aux | grep java | grep "jmxremote"
+```
+
+### Customizing JMX Configuration
+
+JMX and Actuator metrics are already configured in `application.properties`:
+
+```properties
+spring.jmx.enabled=true
+management.endpoints.web.exposure.include=health,metrics
+management.endpoint.health.show-details=always
+management.metrics.enable.jvm=true
+```
+
+**For remote JMX access**, add JVM arguments when starting the application:
 
 ```bash
-sudo nano /etc/systemd/system/springboot-app.service
+java -Dcom.sun.management.jmxremote \
+     -Dcom.sun.management.jmxremote.port=9010 \
+     -Dcom.sun.management.jmxremote.local.only=false \
+     -Dcom.sun.management.jmxremote.authenticate=false \
+     -Dcom.sun.management.jmxremote.ssl=false \
+     -jar target/springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback-0.0.1-SNAPSHOT.jar
 ```
 
-### Service File Content
-
-```ini
-[Unit]
-Description=Spring Boot Application
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/app
-ExecStart=/usr/bin/java -jar /home/ubuntu/app/springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback-0.0.1-SNAPSHOT.jar
-Restart=on-failure
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=springboot-app
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Manage Service
+**Override configuration via command line:**
 
 ```bash
-# Reload systemd
-sudo systemctl daemon-reload
-
-# Enable service (start on boot)
-sudo systemctl enable springboot-app
-
-# Start service
-sudo systemctl start springboot-app
-
-# Check status
-sudo systemctl status springboot-app
-
-# View logs
-sudo journalctl -u springboot-app -f
-
-# Stop service
-sudo systemctl stop springboot-app
-
-# Restart service
-sudo systemctl restart springboot-app
-
-# Disable service
-sudo systemctl disable springboot-app
+java -jar target/springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback-0.0.1-SNAPSHOT.jar \
+  --management.endpoints.web.exposure.include=health,metrics,info
 ```
+
+### Spring Boot Actuator Setup
+
+Spring Boot Actuator is already configured in this project. The `spring-boot-starter-actuator` dependency is included in `pom.xml`, and metric endpoints are configured in `application.properties`.
+
+The following endpoints are exposed:
+- `GET /actuator/health` — Application health status with details
+- `GET /actuator/metrics` — List of all available metric names
+- `GET /actuator/metrics/{metric.name}` — Detailed values for a specific metric
+
+### JVM Metrics Exposed
+
+#### 1. Memory Usage Metrics
+- **jvm.memory.used**: Current memory usage (heap and non-heap)
+- **jvm.memory.committed**: Memory guaranteed to be available
+- **jvm.memory.max**: Maximum memory available
+- **jvm.buffer.memory.used**: Buffer pool memory usage
+- **jvm.buffer.count**: Number of buffers
+
+**Why Important**: Monitor memory consumption, detect memory leaks, and optimize heap size settings.
+
+#### 2. Garbage Collection Metrics
+- **jvm.gc.pause**: GC pause duration and frequency
+- **jvm.gc.memory.allocated**: Total memory allocated
+- **jvm.gc.memory.promoted**: Memory promoted from young to old generation
+- **jvm.gc.live.data.size**: Size of old generation after full GC
+
+**Why Important**: Identify GC pressure, tune GC settings, and optimize application performance.
+
+#### 3. Thread and Concurrency Metrics
+- **jvm.threads.live**: Current number of live threads
+- **jvm.threads.daemon**: Number of daemon threads
+- **jvm.threads.peak**: Peak number of live threads
+- **jvm.threads.states**: Thread count by state (runnable, blocked, waiting, etc.)
+
+**Why Important**: Detect thread leaks, monitor thread pool usage, and identify concurrency issues.
+
+#### 4. Class Loading Metrics
+- **jvm.classes.loaded**: Number of classes currently loaded
+- **jvm.classes.unloaded**: Total number of classes unloaded since JVM start
+
+### Querying Metrics via curl
+
+```bash
+# List all available metrics
+curl -s http://localhost:8080/actuator/metrics | jq
+
+# Thread utilization
+curl -s http://localhost:8080/actuator/metrics/jvm.threads.live | jq
+curl -s http://localhost:8080/actuator/metrics/jvm.threads.states | jq
+
+# Memory usage
+curl -s http://localhost:8080/actuator/metrics/jvm.memory.used | jq
+curl -s http://localhost:8080/actuator/metrics/jvm.memory.max | jq
+
+# Garbage collection
+curl -s http://localhost:8080/actuator/metrics/jvm.gc.pause | jq
+
+# Application health
+curl -s http://localhost:8080/actuator/health | jq
+```
+
 
 ## Troubleshooting
 
@@ -652,7 +681,8 @@ The application uses weighted random generation:
 - **No Database**: All data is generated in-memory
 - **Thread-Safe**: Uses ThreadLocalRandom for concurrent requests
 - **Production Ready**: Includes proper logging, testing, and packaging
-- **Docker**: Can be containerized using standard Spring Boot Docker practices
+- **Docker**: Multi-stage Dockerfile included (see `Dockerfile`)
+- **Kubernetes**: Deployment manifests included (see `k8s/`)
 
 ## License
 
@@ -665,655 +695,3 @@ This is a demonstration project for educational purposes.
 - Java: 17.0.17
 - Tomcat: 10.1.50 (embedded)
 - Last Updated: 2026-01-21
-
----
-
-# Datadog dd-trace-java Instrumentation
-
-## Datadog Prerequisites
-
-To use Datadog APM and Dynamic Instrumentation with this application:
-
-- **Datadog Agent**: Version 7.49.0 or higher running on your system
-- **dd-trace-java**: Latest version (compatible with Java 8+, including Java 17)
-- **Remote Configuration**: Enabled in Datadog Agent for Dynamic Instrumentation
-
-
-## Installing Datadog Agent (Ubuntu)
-
-```bash
-# Install Datadog Agent
-DD_API_KEY=<YOUR_API_KEY> \
-DD_SITE="datadoghq.com" \
-DD_ENV=testv7 \
-bash -c "$(curl -L https://install.datadoghq.com/scripts/install_script_agent7.sh)"
-
-# Verify installation
-sudo systemctl status datadog-agent
-
-# Enable log collection
-sudo sed -i 's/# logs_enabled: false/logs_enabled: true/' /etc/datadog-agent/datadog.yaml
-
-# Restart agent
-sudo systemctl restart datadog-agent
-```
-
-Replace `<YOUR_API_KEY>` with your Datadog API key from [app.datadoghq.com](https://app.datadoghq.com/organization-settings/api-keys).
-
-### Agent Picks Up File Appender Logs
-
-The PUT endpoint logs to `logs/app.log`. Configure the Datadog Agent to tail this file:
-
-**1. Create Agent configuration file:**
-```bash
-sudo mkdir -p /etc/datadog-agent/conf.d/springboot-app.d
-sudo vim /etc/datadog-agent/conf.d/springboot-app.d/conf.yaml
-```
-
-**2. Add this configuration** (update `path` to match your deployment location):
-```yaml
-logs:
-  # Add this section for file appender logs
-  - type: file
-    path: /home/ubuntu/logs/app.log
-    service: springboot-app
-    source: java
-    tags:
-      - env:testv7
-      - version:0.0.2
-      - endpoint:put
-  # Console logs (stdout/stderr) from systemd service
-  # WORKS ONLY IF THE SPRINGBOOT-APP IS RUNNING AS A SYSTEMD SERVICE
-  - type: journald
-    service: springboot-app
-    source: java
-    tags:
-      - env:testv7
-      - endpoint:get
-```
-
-**3. Enable log collection and restart Agent:**
-```bash
-sudo sed -i 's/# logs_enabled: false/logs_enabled: true/' /etc/datadog-agent/datadog.yaml
-sudo systemctl restart datadog-agent
-```
-
-**4. VERY IMPORTANT - Set file permissions:**
-```bash
-# Give dd-agent group read access to the logs directory
-sudo chmod 755 /home/ubuntu
-sudo chmod 755 /home/ubuntu/logs
-sudo chmod 644 /home/ubuntu/logs/app.log
-
-# Verify dd-agent can now read it
-sudo -u dd-agent cat ~/logs/app.log | head -5
-
-# Restart
-sudo systemctl restart datadog-agent
-
-```
-
-**5. Verify:**
-```bash
-# Wait 30 seconds, then check status
-sleep 30
-sudo datadog-agent status | grep -A 10 "Logs Agent"
-
-# Test with PUT request
-curl -X PUT http://localhost:8080/api/update
-```
-
-Logs appear in [Datadog Logs Explorer](https://app.datadoghq.com/logs) filtered by `service:springboot-app`. Trace IDs (`dd.trace_id`) automatically link logs to APM traces.
-
-
-### Agent Picks Up Syslog Appender Logs
-Create a dedicated syslog configuration file:
-
-`sudo mkdir -p /etc/datadog-agent/conf.d/syslog.d`
-
-`sudo nano /etc/datadog-agent/conf.d/syslog.d/conf.yaml`
-
-```yaml
-logs:
-  - type: udp
-    port: 514
-    service: springboot-app
-    source: syslog
-    tags:
-      - env:testv7
-      - endpoint:post
-```
-
-`sudo systemctl restart datadog-agent`
-
-2. Verify the Agent is listening on port 514:
-
-```bash
-sudo netstat -tulpn | grep 514
-# Or
-sudo ss -tulpn | grep 514
-```
-
-```bash
-# Test POST endpoint
-curl -v -X POST http://localhost:8080/api/submit \
-  -H "Content-Type: application/json" \
-  -d '{"name": "test", "value": 123}'
-
-sudo datadog-agent status | grep -A 10 "Logs Agent"
-```
-
-### Agent Level Filtering (Prioritize ERROR/CRITICAL Logs)
-
-Configure the Datadog Agent to filter logs and prioritize high-severity messages.
-
-**Configuration File**: `/etc/datadog-agent/datadog.yaml` (Ubuntu) or `/opt/datadog-agent/etc/datadog.yaml` (macOS)
-
-**Include Only ERROR/CRITICAL Logs**:
-```yaml
-logs_enabled: true
-logs_config:
-  processing_rules:
-    - type: include_at_match
-      name: include_errors_critical
-      pattern: '"level":"ERROR"|"level":"WARN"|"level":"FATAL"'
-```
-
-**Exclude INFO/DEBUG Logs** (alternative approach):
-```yaml
-logs_config:
-  processing_rules:
-    - type: exclude_at_match
-      name: exclude_low_severity
-      pattern: '"level":"INFO"|"level":"DEBUG"'
-```
-
-**Apply Changes**:
-```bash
-# Validate configuration
-sudo datadog-agent configcheck
-
-# Restart agent
-sudo systemctl restart datadog-agent
-
-# Verify agent status
-sudo systemctl status datadog-agent
-```
-
-**Dynamic Adjustment**: Comment/uncomment filtering rules during incidents to temporarily increase log volume.
-
-
-## Installing dd-trace-java
-
-Download the Datadog Java tracer agent:
-
-```bash
-curl -Lo dd-java-agent.jar 'https://dtdg.co/latest-java-tracer'
-```
-
-Verify the download:
-
-```bash
-ls -lh dd-java-agent.jar
-```
-
-Place the JAR in your project directory (or a standard location like `/opt/datadog/`).
-
-## Running with Datadog (Ubuntu)
-
-Run your application with the Datadog Java tracer:
-
-```bash
-# Run with dd-trace-java agent using system properties
-java -javaagent:dd-java-agent.jar \
-  -Ddd.service=springboot-app \
-  -Ddd.env=production \
-  -Ddd.version=0.0.1 \
-  -Ddd.agent.host=localhost \
-  -jar target/springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback-0.0.1-SNAPSHOT.jar
-```
-
-**Key Configuration**:
-- `-javaagent:dd-java-agent.jar` - Must come before `-jar`
-- `dd.service` - Your service name in Datadog
-- `dd.env` - Environment (production, staging, dev)
-- `dd.version` - Application version
-- Agent connects to `localhost:8126` by default
-
-## Running with Datadog (macOS)
-
-Same commands as Ubuntu:
-
-```bash
-# Run with dd-trace-java agent using system properties
-java -javaagent:dd-java-agent.jar \
-  -Ddd.service=springboot-app \
-  -Ddd.env=production \
-  -Ddd.version=0.0.1 \
-  -Ddd.agent.host=localhost \
-  -jar target/springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback-0.0.1-SNAPSHOT.jar
-```
-
-Datadog Agent on macOS typically runs at `localhost:8126`.
-
-## Log Correlation (Trace ID & Span ID)
-
-### What It Does
-
-Automatically links logs to traces by injecting trace IDs into your logs, enabling the "Related Logs" view in Datadog APM.
-
-### How It Works
-
-When running with dd-trace-java (enabled by default via `dd.logs.injection=true`):
-
-1. **dd-trace-java** adds trace context (`dd.trace_id`, `dd.span_id`) to SLF4J's MDC (Mapped Diagnostic Context)
-2. **Logback** includes MDC values in JSON output via `<includeMdc>true</includeMdc>`
-3. **Datadog** automatically correlates logs with traces using these IDs
-
-### Configuration Verification
-
-Your `logback-spring.xml` must have `<includeMdc>true</includeMdc>`:
-
-```xml
-<encoder class="net.logstash.logback.encoder.LogstashEncoder">
-    <includeMdc>true</includeMdc>
-</encoder>
-```
-
-This project already has this configured for CONSOLE_JSON and FILE_JSON appenders.
-
-### Example Output
-
-With dd-trace-java running, logs include trace context:
-
-```json
-{
-  "@timestamp": "2026-01-21T10:30:00.000+08:00",
-  "message": "PUT /api/update - Status: 500",
-  "level": "INFO",
-  "dd.trace_id": "1234567890123456789",
-  "dd.span_id": "9876543210987654321"
-}
-```
-
-Click trace IDs in Datadog Logs to view related traces.
-
-### Test All Endpoints
-
-```bash
-# Check before state of Logs processed and sent
-sudo datadog-agent status | grep -A 10 "Logs Agent"
-
-# Test GET endpoint
-curl -v http://localhost:8080/api/data
-
-# Test POST endpoint
-curl -v -X POST http://localhost:8080/api/submit \
-  -H "Content-Type: application/json" \
-  -d '{"name": "test", "value": 123}'
-
-# Test PUT endpoint
-curl -v -X PUT http://localhost:8080/api/update
-
-# Check if Logs are processed and sent
-sudo datadog-agent status | grep -A 10 "Logs Agent"
-```
-
-
-## Dynamic Instrumentation
-
-### What is Dynamic Instrumentation
-
-Dynamic Instrumentation adds logging, metrics, and tracing to your running application without restarting or modifying code. It works by injecting "probes" at runtime.
-
-**Key Capabilities**:
-- Add log statements to running code
-- Capture variable values during execution
-- Set conditions to trigger only during errors
-- No application restart required
-- Changes take effect within seconds
-
-### Enabling Dynamic Instrumentation
-
-Add the configuration flag when starting your application:
-
-**JVM Argument**
-```bash
-java -javaagent:dd-java-agent.jar \
-  -Ddd.service=springboot-app \
-  -Ddd.env=testv7 \
-  -Ddd.version=0.0.1 \
-  -Ddd.agent.host=localhost \
-  -Ddd.dynamic.instrumentation.enabled=true \
-  -jar springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback-0.0.1-SNAPSHOT.jar
-```
-
-Requires Datadog Agent 7.49.0+ with Remote Configuration enabled.
-
-### Creating Log Probes
-
-Create probes in the Datadog UI at **APM > Dynamic Instrumentation**.
-
-**Steps**:
-1. Click **"Create Probe"** → Select **"Log"**
-2. Specify location:
-   - **Class**: `com.jek.springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback.controller.ApiController`
-   - **Method**: `updateData()` of the PUT endpoint
-   - **Line Number**: Optional for precise placement
-3. Define message template:
-   ```
-   Error 4XX or 5XX detected - Status: {statusCode}
-   ```
-4. Add condition (optional):
-   ```
-   statusCode >= 400
-   ```
-5. Click **"Create"**
-
-**Example Probe: Trigger on 5XX Errors**
-
-- **Location**: `ApiController.updateData()` method
-- **Condition**: `statusCode >= 400`
-- **Message**: `4XX or 5XX Error - Status: {statusCode}, Thread: {Thread.currentThread().getName()}`
-
-Test it
-```bash
-# Test PUT endpoint
-curl -v -X PUT http://localhost:8080/api/update
-```
-
-**Result**: Probe logs appear in Datadog with tag `source:dd_debugger` only when statusCode >= 400.
-
-**Rate Limiting**: Probes execute up to 5,000 times/second per instance to prevent performance impact.
-
-![](../assets/proof3.png)
-
-![](../assets/proof6.png)
-Here is the result of how the logs look like from dynamic instrumentation log probe.
-
-### Creating Span Probes
-
-Span probes create custom APM spans to measure method execution time and performance.
-
-**Steps**:
-1. Go to **APM > Dynamic Instrumentation** → Click **"Create Probe"** → Select **"Span"**
-2. Specify location:
-   - **Class**: `com.jek.springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback.controller.ApiController`
-   - **Method**: `submitData(Map)`
-3. Configure span:
-   - **Span Name**: `custom.submit.data`
-   - **Resource**: Optional (e.g., `POST /api/submit`)
-4. Click **"Create"**
-
-**Test it**:
-```bash
-curl -X POST http://localhost:8080/api/submit \
-  -H "Content-Type: application/json" \
-  -d '{"test":"data"}'
-```
-
-**Result**: Custom spans appear in APM traces with tag `source:dd_debugger`, showing exact execution time of the `submitData` method.
-
-### Dynamic Expression Examples
-
-Probe expressions can access variables, method arguments, object properties, and return values:
-
-**Accessing Local Variables**:
-```
-Message: "Status: {statusCode}, RandomNumber: {randomNumber}"
-```
-
-**Accessing Method Arguments**:
-For method `processOrder(String orderId, int quantity)`:
-```
-Message: "Processing order {orderId} with quantity {quantity}"
-```
-
-**Accessing Object Properties**:
-```
-Message: "Request from {request.remoteAddr} to {request.requestURI}"
-Condition: request.method == "PUT"
-```
-
-**Accessing Return Values** (place probe at method exit):
-```
-Message: "Method returned: {@return.statusCode}"
-```
-
-**Complex Conditions**:
-```
-Condition: statusCode >= 500 && randomNumber < 10000
-Message: "Critical: High status {statusCode} with low number {randomNumber}"
-```
-
-**Null Safety**:
-```
-Condition: exception != null
-Message: "Exception occurred: {exception.message}"
-```
-
-### Architecture
-
-Dynamic Instrumentation architecture showing how probes work:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Datadog Backend                      │
-│  (APM UI, Remote Configuration, Log Storage)            │
-└────────────────────┬────────────────────────────────────┘
-                     │ Remote Config
-                     │ (Probe Definitions)
-                     ↓
-┌─────────────────────────────────────────────────────────┐
-│              Datadog Agent (localhost:8126)             │
-│  - Receives traces & logs                               │
-│  - Distributes probe configurations                     │
-│  - Filters logs (ERROR/CRITICAL prioritization)         │
-└────────────────────┬────────────────────────────────────┘
-                     │ Traces, Logs, Probe Config
-                     ↓
-┌─────────────────────────────────────────────────────────┐
-│              Java Application (JVM)                     │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │         dd-java-agent.jar (-javaagent)            │  │
-│  │  - Automatic Instrumentation                      │  │
-│  │  - Log Injection (trace_id, span_id)              │  │
-│  │  - Dynamic Instrumentation Engine                 │  │
-│  │  - Bytecode Manipulation (ASM library)            │  │
-│  └────────────┬──────────────────────────────────────┘  │
-│               │                                         │
-│               ↓                                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │         Application Code                          │  │
-│  │  - Controllers, Services, DAOs                    │  │
-│  │  - SLF4J + Logback (JSON Logging)                 │  │
-│  │  - Log Probes Injected at Runtime                 │  │
-│  └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### How Log Probes Work (Step-by-Step)
-
-1. **Probe Creation**: Developer creates Log Probe in Datadog UI (APM > Dynamic Instrumentation)
-2. **Remote Config Delivery**: Datadog Backend sends probe definition to Agent via Remote Configuration
-3. **Agent Distribution**: Agent pushes probe configuration to running Java application
-4. **Bytecode Injection**: dd-java-agent modifies JVM bytecode at runtime using ASM library
-5. **Conditional Execution**: Probe evaluates condition (e.g., `statusCode >= 500`)
-6. **Log Emission**: If condition is true, probe emits log with `source:dd_debugger` tag
-7. **Log Collection**: Agent collects logs and sends to Datadog Backend
-8. **Trace Correlation**: Logs are linked to traces via `dd.trace_id` and `dd.span_id`
-
-**Key Technologies**:
-- **ASM Library**: Bytecode manipulation framework
-- **Remote Configuration**: Real-time probe deployment
-- **Expression Language**: Dynamic runtime context evaluation
-- **Non-Invasive**: Probes don't modify source code or persist after restart
-
-## Automatic Error Trace Prioritization
-
-### How Datadog Prioritizes Error Logs
-
-Datadog APM automatically captures error traces even when normal trace sampling is low, ensuring no errors are missed.
-
-**Error Sampler**:
-- Catches traces containing error spans not captured by head-based sampling
-- Default rate: **10 error traces per second per Agent**
-- Works automatically with no configuration required
-
-**How It Works**:
-1. **Head-Based Sampling**: Agent samples traces (e.g., 10% of all traffic)
-2. **Error Detection**: Error trace occurs but wasn't sampled
-3. **Error Sampler Activation**: Automatically captures error trace (up to 10 TPS)
-4. **Log Correlation**: All logs with matching `dd.trace_id` are prioritized and linked
-
-**Configuration** (optional, in `/etc/datadog-agent/datadog.yaml`):
-```yaml
-apm_config:
-  error_traces_per_second: 10  # Default: 10
-```
-
-**Result**: Error traces and their related logs always appear in Datadog APM, regardless of sampling rate.
-
-## Testing Datadog Integration
-
-### Test 1: Verify dd-trace-java Installation
-
-**Steps**:
-1. Start application with dd-trace-java agent
-2. Navigate to [Datadog APM > Services](https://app.datadoghq.com/apm/services)
-3. Look for service name `springboot-app`
-
-**Expected**: Service appears in list with traces flowing
-
-### Test 2: Verify Log Correlation
-
-**Steps**:
-1. Make API requests: `curl http://localhost:8080/api/data`
-2. Check console logs for `dd.trace_id` and `dd.span_id` fields
-3. Navigate to Datadog APM > Traces > Select a trace > "Related Logs" tab
-
-**Expected**: Logs contain trace IDs and link to traces in UI
-
-### Test 3: Verify Dynamic Instrumentation
-
-**Steps**:
-1. Enable Dynamic Instrumentation (`-Ddd.dynamic.instrumentation.enabled=true`)
-2. Create Log Probe in Datadog UI:
-   - Class: `ApiController`
-   - Method: `putUpdate`
-   - Condition: `statusCode >= 500`
-   - Message: `5XX Error: {statusCode}`
-3. Trigger PUT requests until 5XX occurs: `curl -X PUT http://localhost:8080/api/update`
-4. Check Datadog Logs for entries with `source:dd_debugger`
-
-**Expected**: Probe logs appear only when statusCode >= 500
-
-### Test 4: Verify Agent Filtering
-
-**Steps**:
-1. Configure `/etc/datadog-agent/datadog.yaml` with ERROR filter (see Agent Level Filtering section)
-2. Restart Agent: `sudo systemctl restart datadog-agent`
-3. Generate INFO and ERROR logs (trigger various status codes)
-4. Check Datadog Logs Explorer
-
-**Expected**: Only ERROR/WARN logs appear, INFO logs excluded
-
-### Test 5: Verify Error Trace Prioritization
-
-**Steps**:
-1. Generate 10 requests including errors:
-   ```bash
-   for i in {1..10}; do curl http://localhost:8080/api/data; done
-   ```
-2. Check Datadog APM > Traces
-3. Look for error traces (red indicators)
-
-**Expected**: Error traces always captured, even if sampling rate is low
-
-### Test 6: End-to-End Verification
-
-**Steps**:
-1. Run app with all features enabled
-2. Create probe for 5XX errors
-3. Trigger 5XX error: `curl -X PUT http://localhost:8080/api/update` (repeat until 500/503 appears)
-4. Check:
-   - Console logs for `dd.trace_id`
-   - Datadog APM for error trace
-   - Datadog Logs for probe entry (`source:dd_debugger`)
-   - Related logs linked to trace
-
-**Expected**: Error logged locally, trace in APM, probe triggered, logs correlated
-
-## Configuration Summary
-
-Key Datadog configurations for this application:
-
-| Configuration | Default | Purpose | Set Via |
-|--------------|---------|---------|---------|
-| `dd.service` | - | Service name in Datadog | JVM arg / env var |
-| `dd.env` | - | Environment (prod/staging) | JVM arg / env var |
-| `dd.version` | - | Application version | JVM arg / env var |
-| `dd.logs.injection` | `true` | Inject trace IDs into logs | JVM arg / env var |
-| `dd.trace.enabled` | `true` | Enable tracing | JVM arg / env var |
-| `dd.dynamic.instrumentation.enabled` | `false` | Enable log probes | JVM arg / env var |
-| `dd.agent.host` | `localhost` | Datadog Agent host | JVM arg / env var |
-| `dd.agent.port` | `8126` | Datadog Agent port | JVM arg / env var |
-| `logs_enabled` | `false` | Enable log collection | `datadog.yaml` |
-| `error_traces_per_second` | `10` | Error trace capture rate | `datadog.yaml` |
-
-**JVM Argument Format**: `-Ddd.service=value`
-**Environment Variable Format**: `DD_SERVICE=value` (uppercase, underscores)
-
-## Datadog Troubleshooting
-
-### Traces Not Appearing in Datadog
-
-**Check Agent Connection**:
-```bash
-# Ubuntu
-sudo systemctl status datadog-agent
-
-# View agent logs
-sudo tail -f /var/log/datadog/agent.log
-```
-
-**Verify** `dd.service`, `dd.env`, `dd.version` are set correctly and Agent is reachable at `localhost:8126`.
-
-### No Trace IDs in Logs
-
-**Verify Logback Configuration**:
-- Ensure `<includeMdc>true</includeMdc>` in `logback-spring.xml`
-- Confirm `dd.logs.injection=true` (enabled by default)
-- Restart application
-
-### Probes Not Working
-
-**Check Dynamic Instrumentation**:
-- Verify `-Ddd.dynamic.instrumentation.enabled=true` is set
-- Ensure Datadog Agent has Remote Configuration enabled
-- Check probe status in Datadog UI (APM > Dynamic Instrumentation)
-- Verify probe class/method names match exactly
-
-### Agent Not Collecting Logs
-
-**Enable Log Collection**:
-```bash
-# Check datadog.yaml
-grep logs_enabled /etc/datadog-agent/datadog.yaml
-
-# Should show: logs_enabled: true
-# If not, edit and restart agent
-sudo systemctl restart datadog-agent
-```
-
-## Datadog Additional Notes
-
-- **No Code Changes Required**: All instrumentation is automatic via dd-trace-java agent
-- **Automatic Trace Correlation**: Logs automatically linked to traces when `dd.logs.injection=true`
-- **Dynamic Probes**: Add/remove logging at runtime without restarting application
-- **Error Prioritization**: Error traces always captured (10 TPS) regardless of sampling rate
-- **Performance Impact**: Minimal overhead (<1% for tracing, probes rate-limited to 5000 exec/sec)
-- **Production Ready**: All features tested and recommended for production use
-
-
