@@ -1023,6 +1023,8 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ### 5.4 Send Apigee Traces to Datadog via an Intermediate OTel Collector
 
+> **Known limitation (eval/trial orgs):** Apigee’s `OPEN_TELEMETRY_COLLECTOR` exporter is accepted by the TraceConfig API on eval/trial organizations, but the runtime **does not actually export traces**. The configuration is silently ignored — zero network traffic is sent to the collector. This approach may only work on **paid/subscription** Apigee organizations. The steps below are documented for completeness; if you are on an eval org, skip to step 5.5.
+
 Apigee’s `OPEN_TELEMETRY_COLLECTOR` exporter does **not** support custom HTTP headers (like `dd-api-key`). To send Apigee traces to Datadog, we deploy an intermediate OpenTelemetry Collector on a GCE VM that:
 
 1. **Receives** traces from Apigee over OTLP HTTP (no auth needed — internal VPC traffic)
@@ -1050,7 +1052,7 @@ gcloud compute instances create jek-otel-collector \
 
 #### 5.4.2 Create a firewall rule for Apigee → OTel Collector
 
-Allow Apigee’s peered IP range to reach the collector on port 4318 (OTLP HTTP).
+Allow Apigee’s peered IP range to reach the collector on ports 4317 (gRPC) and 4318 (HTTP). Both are opened because Apigee’s exporter protocol is undocumented — this ensures connectivity regardless of which protocol the runtime uses.
 
 ```bash
 # Get the Apigee peering range allocated in step 2.2
@@ -1060,10 +1062,10 @@ APIGEE_RANGE=$(gcloud compute addresses describe jek-google-managed-apigee \
 
 gcloud compute firewall-rules create jek-allow-apigee-to-otel \
     --network=jek-vpc \
-    --allow=tcp:4318 \
+    --allow=tcp:4317,tcp:4318 \
     --source-ranges="$APIGEE_RANGE" \
     --target-tags=jek-otel-collector \
-    --description="Allow Apigee peering range to reach OTel Collector OTLP HTTP" \
+    --description="Allow Apigee peering range to reach OTel Collector (gRPC + HTTP)" \
     --project=$PROJECT
 ```
 
@@ -1125,6 +1127,20 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+  
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:14250
+      thrift_binary:
+        endpoint: 0.0.0.0:6832
+      thrift_compact:
+        endpoint: 0.0.0.0:6831
+      thrift_http:
+        endpoint: 0.0.0.0:14268
+
+  zipkin:
+    endpoint: 0.0.0.0:9411
 
   # Collect own metrics
   prometheus:
@@ -1135,16 +1151,13 @@ receivers:
         static_configs:
         - targets: ['0.0.0.0:8888']
 
-processors:
-  batch:
-
 exporters:
   debug:
     verbosity: detailed
   otlp_http:
     traces_endpoint: "https://otlp.datadoghq.com/v1/traces"
-    # metrics_endpoint: "https://otlp.datadoghq.com/v1/metrics"
-    # logs_endpoint: "https://otlp.datadoghq.com/v1/logs"
+    metrics_endpoint: "https://otlp.datadoghq.com/v1/metrics"
+    logs_endpoint: "https://otlp.datadoghq.com/v1/logs"
     headers:
       "dd-api-key": "<REPLACE-WITH-YOUR-DATADOG-API-KEY>"
       "dd-otlp-source": "datadog"
@@ -1157,23 +1170,21 @@ service:
   pipelines:
 
     traces:
-      receivers: [otlp]
+      receivers: [otlp, jaeger, zipkin]
       exporters: [otlp_http, debug]
 
-    # metrics:
-    #   receivers: [otlp, prometheus]
-    #   processors: [batch]
-    #   exporters: [debug]
+    metrics:
+      receivers: [otlp, prometheus]
+      exporters: [otlp_http, debug]
 
-    # logs:
-    #   receivers: [otlp]
-    #   processors: [batch]
-    #   exporters: [debug]
+    logs:
+      receivers: [otlp]
+      exporters: [otlp_http, debug]
 
   extensions: [health_check, pprof, zpages]
 ```
 
-> **Important**: Replace `<REPLACE-WITH-YOUR-DATADOG-API-KEY>` with your actual Datadog API key.
+> **Important**: Replace `<REPLACE-WITH-YOUR-DATADOG-API-KEY>` with your actual Datadog API key. Ask for the Datadog API Key if needed.
 
 Restart the collector and verify it starts without errors:
 
@@ -1201,22 +1212,57 @@ OTEL_IP=$(gcloud compute instances describe jek-otel-collector \
 echo "OTel Collector internal IP: $OTEL_IP"
 
 TOKEN=$(gcloud auth print-access-token)
+```
 
-# Create a new environment for Datadog tracing
+**Step A — Create the environment** (returns a long-running operation):
+
+```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
      -X POST \
      "https://apigee.googleapis.com/v1/organizations/$ORG/environments" \
      -d ‘{ "name": "eval-dd" }’
+```
 
-# Attach it to the instance (this may take a few minutes)
-curl -s -H "Authorization: Bearer $TOKEN" \
+Wait until the environment is active:
+
+```bash
+# Poll until state is ACTIVE (usually < 30s)
+while true; do
+  STATE=$(curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://apigee.googleapis.com/v1/organizations/$ORG/environments/eval-dd" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get(‘state’,’PENDING’))" 2>/dev/null)
+  echo "Environment state: $STATE"
+  [ "$STATE" = "ACTIVE" ] && break
+  sleep 10
+done
+```
+
+**Step B — Attach to the instance** (this is also a long-running operation, ~2 min):
+
+```bash
+ATTACH_OP=$(curl -s -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
      -X POST \
      "https://apigee.googleapis.com/v1/organizations/$ORG/instances/$APIGEE_INSTANCE/attachments" \
-     -d ‘{ "environment": "eval-dd" }’
+     -d ‘{ "environment": "eval-dd" }’ \
+     | python3 -c "import sys,json; print(json.load(sys.stdin).get(‘name’,’’))")
+echo "Attachment operation: $ATTACH_OP"
 
-# Configure TraceConfig to send to the OTel Collector
+# Poll until the operation finishes (~2 min)
+while true; do
+  STATE=$(curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://apigee.googleapis.com/v1/$ATTACH_OP" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get(‘metadata’,{}).get(‘state’,’UNKNOWN’))" 2>/dev/null)
+  echo "Attachment state: $STATE"
+  [ "$STATE" = "FINISHED" ] && break
+  sleep 15
+done
+```
+
+**Step C — Configure TraceConfig** to point at the OTel Collector:
+
+```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
      -X PATCH \
@@ -1229,8 +1275,11 @@ curl -s -H "Authorization: Bearer $TOKEN" \
          \"samplingRate\": 0.5
        }
      }"
+```
 
-# Deploy the proxy to the new environment
+**Step D — Deploy the proxy** to the new environment:
+
+```bash
 "$HOME/.apigeecli/bin/apigeecli" apis deploy \
     -n jek-apigee-api-v1 \
     -e eval-dd \
@@ -1240,6 +1289,35 @@ curl -s -H "Authorization: Bearer $TOKEN" \
     --ovr
 ```
 
+**Step E — Attach to environment group**:
+
+The `eval-dd` environment must be attached to the environment group (`eval-group`) so that the load balancer routes traffic to it.
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -X POST \
+     "https://apigee.googleapis.com/v1/organizations/$ORG/envgroups/eval-group/attachments" \
+     -d '{ "environment": "eval-dd" }'
+```
+
+> **Note — Routing when two environments share an envgroup**: When both `eval` and `eval-dd` are attached to `eval-group` with the same proxy deployed, Apigee may route traffic to either environment. To ensure traffic reaches `eval-dd` for testing, **undeploy the proxy from `eval` first**:
+>
+> ```bash
+> # Undeploy from eval so all traffic routes to eval-dd
+> "$HOME/.apigeecli/bin/apigeecli" apis undeploy \
+>     -n jek-apigee-api-v1 -e eval -v 1 -o "$ORG" \
+>     --token "$(gcloud auth print-access-token)"
+> ```
+>
+> After testing, redeploy to `eval`:
+>
+> ```bash
+> "$HOME/.apigeecli/bin/apigeecli" apis deploy \
+>     -n jek-apigee-api-v1 -e eval -v 1 -o "$ORG" \
+>     --token "$(gcloud auth print-access-token)" --ovr
+> ```
+
 #### 5.4.6 Verify traces in Datadog
 
 1. Send traffic through the proxy:
@@ -1247,6 +1325,19 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 ```bash
 curl -k -s "https://${LB_IP}.nip.io/api/"
 ```
+
+```bash
+LB_IP=$(gcloud compute addresses describe jek-apigee-lb-ip \
+    --global --format="value(address)" --project="$PROJECT")
+
+# Send 10 requests to generate traces
+for i in $(seq 1 10); do
+  curl -k -s -o /dev/null -w "Request $i: HTTP %{http_code}\n" "https://${LB_IP}.nip.io/api/"
+done
+```
+
+> With `samplingRate: 0.5`, only ~50% of requests will be traced.
+
 
 2. SSH into the OTel Collector and check the logs for received traces:
 
@@ -1546,6 +1637,18 @@ if [ -n "$ATTACHMENT_NAME" ]; then
     "https://apigee.googleapis.com/v1/$ATTACHMENT_NAME"
   echo "Detached eval-dd from instance. Waiting 60s for detachment to complete..."
   sleep 60
+fi
+
+# Detach eval-dd from environment group
+ENVGROUP_ATTACHMENT=$(curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://apigee.googleapis.com/v1/organizations/$ORG/envgroups/eval-group/attachments" \
+    | python3 -c "import sys,json; attachments=json.load(sys.stdin).get('environmentGroupAttachments',[]); print(next((a['name'].split('/')[-1] for a in attachments if a.get('environment')=='eval-dd'),''))")
+
+if [ -n "$ENVGROUP_ATTACHMENT" ]; then
+  curl -s -H "Authorization: Bearer $TOKEN" -X DELETE \
+    "https://apigee.googleapis.com/v1/organizations/$ORG/envgroups/eval-group/attachments/$ENVGROUP_ATTACHMENT"
+  echo "Detached eval-dd from eval-group. Waiting 30s..."
+  sleep 30
 fi
 
 # Delete eval-dd environment
