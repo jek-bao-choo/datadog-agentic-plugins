@@ -1089,7 +1089,19 @@ curl -s -H "Authorization: Bearer $TOKEN" \
      }'
 ```
 
-> **Note**: Apigee's `OPEN_TELEMETRY_COLLECTOR` exporter sends trace data with the OTLP protocol. The `endpoint` field points directly to Datadog's OTLP ingest URL. Authentication headers (`dd-api-key=<KEY>,dd-otlp-source=datadog`) may need to be configured via Apigee's distributed trace overrides or an intermediary OTel Collector if the Apigee TraceConfig does not support custom headers natively.
+> **Note**: Apigee's `OPEN_TELEMETRY_COLLECTOR` exporter sends trace data with the OTLP protocol. You need send to `OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.datadoghq.com/v1/traces` for Datadog US1 data center with authentication headers i.e. `OTEL_EXPORTER_OTLP_HEADERS=dd-api-key=<REPLACE-WITH-YOUR-DATADOG-API-KEY>,dd-otlp-source=datadog`. Remember to replace it with Datadog API key accordingly.
+
+> However, Apigee’s TraceConfig does not natively support custom HTTP/gRPC headers (like dd-api-key or dd-otlp-source) for the OPEN_TELEMETRY_COLLECTOR exporter. While Apigee does support OpenTelemetry as an exporter, its native implementation is very bare-bones. If you look at the Apigee `TraceConfig` API schema, it only accepts three fields:
+
+> `exporter` (e.g., `OPEN_TELEMETRY_COLLECTOR`)
+
+> `endpoint` (a string for the destination URL)
+
+> `samplingConfig` (your sampling rate and sampler type)
+
+> Because there is no configuration block for authentication, headers, or TLS certificates, you cannot point Apigee directly to a vendor like Datadog that requires API keys in the headers.
+
+> So the Recommended Solution: Use an Intermediate Collector, to get your Apigee trace data into Datadog, the standard OpenTelemetry architectural pattern is to deploy an intermediate OpenTelemetry (OTel) Collector within your infrastructure (e.g., on GKE, Compute Engine, or Cloud Run).
 
 #### Verify in Datadog
 
