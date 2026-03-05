@@ -11,6 +11,6 @@
   </PostFlow>
   <HTTPTargetConnection>
     <!-- Endpoint attachment host IP from Phase 3.4 -->
-    <URL>http://7.0.4.2:80</URL>
+    <URL>http://7.0.4.2:80/api</URL>
   </HTTPTargetConnection>
 </TargetEndpoint>

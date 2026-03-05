@@ -7,8 +7,8 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app: springboot-backend
+    app: springboot3dot5dot9-sandbox
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 8080
       protocol: TCP
