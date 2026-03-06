@@ -129,9 +129,9 @@ gcloud compute networks subnets create jek-gke-subnet-in-jek-vpc \
     --project="$PROJECT"
 ```
 
-### 1.3 Create a Private GKE Cluster
+### 1.3 Create a GKE Cluster
 
-> **Important**: You must authorize your public IP to access the control plane, otherwise `kubectl` will not work with `--enable-private-nodes`.
+> **Note**: This creates a public cluster (nodes have external IPs, no egress restrictions) for sandbox/dev simplicity. For production, consider `--enable-private-nodes` and `--enable-master-authorized-networks`.
 
 ```bash
 gcloud container clusters create jek-gke-standard-cluster \
@@ -141,34 +141,46 @@ gcloud container clusters create jek-gke-standard-cluster \
     --cluster-secondary-range-name=pods \
     --services-secondary-range-name=services \
     --enable-ip-alias \
-    --enable-private-nodes \
-    --master-ipv4-cidr=172.16.0.0/28 \
-    --enable-master-authorized-networks \
-    --master-authorized-networks="$(curl -s ifconfig.me)/32" \
     --workload-pool="$PROJECT.svc.id.goog" \
     --num-nodes=2 \
     --machine-type=e2-medium \
     --project="$PROJECT"
 ```
 
-**Alternative (sandbox/dev only)**: Allow any IP to access the control plane by disabling authorized networks entirely:
-```bash
-gcloud container clusters update jek-gke-standard-cluster \
-    --region="$REGION" \
-    --no-enable-master-authorized-networks \
-    --project="$PROJECT"
-```
-
-> **Warning**: This exposes the Kubernetes API to the internet. Only use for sandbox/dev environments, never for production.
-
 Key flags:
-- `--enable-private-nodes`: Nodes have no external IPs
 - `--enable-ip-alias`: Required for VPC-native clusters (needed for PSC)
-- `--master-ipv4-cidr`: Must not overlap with Apigee peering ranges
-- `--master-authorized-networks`: Your public IP must be listed or `kubectl` will be blocked
 - `--workload-pool`: Enables Workload Identity for secure GCP API access
 
-### 1.4 Deploy Spring Boot Application
+### 1.4 Authenticate with ghcr.io (GitHub Container Registry)
+
+If your container images are hosted on ghcr.io, authenticate both locally and on the GKE cluster.
+
+**Local Docker login** (for building/pushing images):
+
+```bash
+echo "$GITHUB_TOKEN" | docker login ghcr.io --username <GITHUB_USERNAME> --password-stdin
+```
+
+> **Prerequisite**: Set `GITHUB_TOKEN` in `~/.github` and source it from `~/.zshrc`. See the Variables section.
+
+**GKE image pull secret** (so the cluster can pull private images):
+
+```bash
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=<GITHUB_USERNAME> \
+  --docker-password="$GITHUB_TOKEN"
+```
+
+Then reference it in your deployment spec:
+
+```yaml
+spec:
+  imagePullSecrets:
+    - name: ghcr-secret
+```
+
+### 1.5 Deploy Spring Boot Application
 
 ```bash
 # Get cluster credentials
@@ -212,7 +224,7 @@ spec:
 > kubectl create serviceaccount springboot-sa
 > ```
 
-### 1.5 Expose via Internal Load Balancer (ILB)
+### 1.6 Expose via Internal Load Balancer (ILB)
 
 ```yaml
 apiVersion: v1
@@ -1023,11 +1035,11 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ### 5.4 Send Apigee Traces to Datadog via an Intermediate OTel Collector
 
-> **Known limitation (eval/trial orgs):** Apigee’s `OPEN_TELEMETRY_COLLECTOR` exporter is accepted by the TraceConfig API on eval/trial organizations, but the runtime **does not actually export traces**. The configuration is silently ignored — zero network traffic is sent to the collector. This approach may only work on **paid/subscription** Apigee organizations. The steps below are documented for completeness; if you are on an eval org, skip to step 5.5.
+> **Known limitation (eval/trial orgs):** Both the `JAEGER` and `OPEN_TELEMETRY_COLLECTOR` exporters are accepted by the TraceConfig API on eval/trial organizations, but the runtime **does not actually export traces**. The configuration is silently ignored — zero network traffic is sent to the collector (verified: no connection attempts observed on any receiver port). This approach may only work on **paid/subscription** Apigee organizations. The steps below use the `JAEGER` exporter and are documented for completeness; if you are on an eval org, skip to step 5.5.
 
-Apigee’s `OPEN_TELEMETRY_COLLECTOR` exporter does **not** support custom HTTP headers (like `dd-api-key`). To send Apigee traces to Datadog, we deploy an intermediate OpenTelemetry Collector on a GCE VM that:
+Apigee’s `JAEGER` exporter (and the `OPEN_TELEMETRY_COLLECTOR` exporter) do **not** support custom HTTP headers (like `dd-api-key`). To send Apigee traces to Datadog, we deploy an intermediate OpenTelemetry Collector on a GCE VM that:
 
-1. **Receives** traces from Apigee over OTLP HTTP (no auth needed — internal VPC traffic)
+1. **Receives** traces from Apigee over Jaeger gRPC/HTTP (no auth needed — internal VPC traffic)
 2. **Forwards** them to Datadog’s OTLP endpoint (with the required `dd-api-key` header)
 
 **Flow**: Apigee → OTel Collector (GCE, `jek-vpc`) → `otlp.datadoghq.com` → Datadog APM
@@ -1052,7 +1064,7 @@ gcloud compute instances create jek-otel-collector \
 
 #### 5.4.2 Create a firewall rule for Apigee → OTel Collector
 
-Allow Apigee’s peered IP range to reach the collector on ports 4317 (gRPC) and 4318 (HTTP). Both are opened because Apigee’s exporter protocol is undocumented — this ensures connectivity regardless of which protocol the runtime uses.
+Allow Apigee’s peered IP range to reach the collector on ports 4317 (gRPC), 4318 (HTTP), 14250 (Jaeger gRPC), and 14268 (Jaeger HTTP). All are opened because Apigee’s exporter protocol is undocumented — this ensures connectivity regardless of which protocol the runtime uses.
 
 ```bash
 # Get the Apigee peering range allocated in step 2.2
@@ -1062,10 +1074,10 @@ APIGEE_RANGE=$(gcloud compute addresses describe jek-google-managed-apigee \
 
 gcloud compute firewall-rules create jek-allow-apigee-to-otel \
     --network=jek-vpc \
-    --allow=tcp:4317,tcp:4318 \
+    --allow=tcp:4317,tcp:4318,tcp:14250,tcp:14268 \
     --source-ranges="$APIGEE_RANGE" \
     --target-tags=jek-otel-collector \
-    --description="Allow Apigee peering range to reach OTel Collector (gRPC + HTTP)" \
+    --description="Allow Apigee peering range to reach OTel Collector (gRPC + HTTP + Jaeger)" \
     --project=$PROJECT
 ```
 
@@ -1202,7 +1214,7 @@ exit
 
 #### 5.4.5 Point Apigee TraceConfig to the OTel Collector
 
-> **Warning**: The `exporter` type is **immutable once set** per environment. Since the `eval` environment already has `CLOUD_TRACE` configured (step 5.1), we create a new environment `eval-dd` for the `OPEN_TELEMETRY_COLLECTOR` exporter.
+> **Warning**: The `exporter` type is **immutable once set** per environment. Since the `eval` environment already has `CLOUD_TRACE` configured (step 5.1), we create a new environment `eval-dd` for the `JAEGER` exporter.
 
 ```bash
 # Get the OTel Collector’s internal IP
@@ -1260,7 +1272,7 @@ while true; do
 done
 ```
 
-**Step C — Configure TraceConfig** to point at the OTel Collector:
+**Step C — Configure TraceConfig** to point at the OTel Collector (Jaeger exporter):
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
@@ -1268,8 +1280,8 @@ curl -s -H "Authorization: Bearer $TOKEN" \
      -X PATCH \
      "https://apigee.googleapis.com/v1/organizations/$ORG/environments/eval-dd/traceConfig?updateMask=endpoint,samplingConfig,exporter" \
      -d "{
-       \"exporter\": \"OPEN_TELEMETRY_COLLECTOR\",
-       \"endpoint\": \"http://${OTEL_IP}:4318\",
+       \"exporter\": \"JAEGER\",
+       \"endpoint\": \"${OTEL_IP}:14250\",
        \"samplingConfig\": {
          \"sampler\": \"PROBABILITY\",
          \"samplingRate\": 0.5
