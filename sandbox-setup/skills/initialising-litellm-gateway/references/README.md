@@ -231,14 +231,37 @@ curl -X POST "https://litellm-proxy-449012790678.asia-southeast1.run.app/key/gen
   -H "Authorization: Bearer YOUR_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "max_budget": 1.0,
-    "budget_duration": "2d",
+    "max_budget": 0.5,
+    "budget_duration": "1d",
     "models": ["claude-opus-4-6"],
     "metadata": {"user": "example-user"}
   }'
 ```
 
 The response contains a `key` field — this is the virtual token to distribute.
+
+### Use with Claude Code
+
+To point Claude Code at the LiteLLM proxy instead of the Anthropic API directly:
+
+```bash
+export ANTHROPIC_BASE_URL="https://litellm-proxy-449012790678.asia-southeast1.run.app"
+export ANTHROPIC_API_KEY="sk-YOUR-VIRTUAL-KEY"
+claude
+```
+
+Or configure it in `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://litellm-proxy-449012790678.asia-southeast1.run.app",
+    "ANTHROPIC_API_KEY": "sk-YOUR-VIRTUAL-KEY"
+  }
+}
+```
+
+Replace `sk-YOUR-VIRTUAL-KEY` with the virtual key generated in the previous step.
 
 ### Test Chat Completion
 
