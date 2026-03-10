@@ -2,6 +2,6 @@
   "name": "starter-kit",
   "description": "Getting started with Datadog using documentation lookup and guided menu",
   "version": "0.1.0",
-  "commands": "../commands",
-  "skills": "../skills"
+  "commands": ["./commands/showing-menu.md"],
+  "skills": ["./skills/"]
 }

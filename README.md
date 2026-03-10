@@ -9,7 +9,7 @@ Two commands on a fresh EC2 Ubuntu instance with [Claude Code](https://docs.anth
 **Step 1 — Download the plugin:**
 
 ```bash
-git clone --depth 1 https://github.com/jek-bao-choo/datadog-agentic-plugins /tmp/datadog-agentic-plugins
+rm -rf /tmp/datadog-agentic-plugins && git clone --depth 1 https://github.com/jek-bao-choo/datadog-agentic-plugins /tmp/datadog-agentic-plugins
 ```
 
 **Step 2 — Start Claude with credentials, plugin, and menu:**
