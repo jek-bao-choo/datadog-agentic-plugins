@@ -1,0 +1,5 @@
+{
+  "name": "java-instrumentation",
+  "description": "Instrument Java applications with Datadog APM",
+  "version": "0.1.0"
+}

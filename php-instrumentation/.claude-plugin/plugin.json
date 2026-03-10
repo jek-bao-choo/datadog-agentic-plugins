@@ -1,0 +1,5 @@
+{
+  "name": "php-instrumentation",
+  "description": "Instrument PHP applications with Datadog APM",
+  "version": "0.1.0"
+}

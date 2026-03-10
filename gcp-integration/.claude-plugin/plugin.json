@@ -1,0 +1,5 @@
+{
+  "name": "gcp-integration",
+  "description": "Set up Datadog GCP integration",
+  "version": "0.1.0"
+}

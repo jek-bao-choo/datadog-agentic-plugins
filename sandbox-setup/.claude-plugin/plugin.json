@@ -1,0 +1,5 @@
+{
+  "name": "sandbox-setup",
+  "description": "Initialise sandbox environments for Datadog testing",
+  "version": "0.1.0"
+}
