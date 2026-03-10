@@ -283,6 +283,12 @@ Or configure it in `~/.claude/settings.json`:
 }
 ```
 
+Or configure it via the CLI:
+
+```bash
+claude --settings '{"env":{"ANTHROPIC_BASE_URL":"<YOUR_LITELLM_SERVICE_URL>","ANTHROPIC_API_KEY":"sk-YOUR-VIRTUAL-KEY"}}'
+```
+
 > **Note:** JSON does not expand shell variables. Replace `<YOUR_LITELLM_SERVICE_URL>` with the actual URL from `.env` (the value of `LITELLM_SERVICE_URL`), and `sk-YOUR-VIRTUAL-KEY` with the virtual key generated in the previous step.
 
 ### Test Chat Completion
@@ -424,6 +430,6 @@ To minimize costs during inactivity, consider stopping the Cloud SQL instance wh
 |---|---|---|
 | Container crashes on startup with `httpx.ConnectError` | Missing `roles/cloudsql.client` on service account | Grant the role (see Step 2) |
 | `Memory limit of 512 MiB exceeded` | Default memory too low | Deploy with `--memory 2Gi` |
-| `invalid x-api-key` from Anthropic | Placeholder or wrong Anthropic key | Update env var with real key |
+| `invalid x-api-key` from Anthropic (via LiteLLM 401) | `ANTHROPIC_API_KEY` on Cloud Run is placeholder or expired | `gcloud run services update litellm-gateway --region asia-southeast1 --update-env-vars="ANTHROPIC_API_KEY=sk-ant-REAL-KEY"` |
 | `key_model_access_denied` | Virtual key not scoped to requested model | Generate new key with correct `models` list |
 | Health check shows model as unhealthy | Anthropic key invalid or account unfunded | Verify key and billing at console.anthropic.com |
