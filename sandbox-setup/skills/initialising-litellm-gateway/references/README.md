@@ -105,6 +105,14 @@ model_list:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/DATABASE_URL
+
+litellm_settings:
+  default_key_generate_params:
+    max_budget: 1
+    duration: "1d"
+  upperbound_key_generate_params:
+    max_budget: 7
+    duration: "4d"
 ```
 
 To add a new model, append an entry under `model_list` and redeploy.
@@ -243,14 +251,16 @@ curl -X POST "$LITELLM_SERVICE_URL/key/generate" \
   -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "max_budget": 0.5,
-    "budget_duration": "1d",
+    "max_budget": 1,
+    "duration": "1d",
     "models": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
     "metadata": {"user": "example-user"}
   }'
 ```
 
 The response contains a `key` field — this is the virtual token to distribute.
+
+> **Key limits:** `config.yaml` sets default budget to $1 and expiry to 1 day via `default_key_generate_params`. Upper bounds are enforced via `upperbound_key_generate_params` — max budget $7, max expiry 4 days. Requests exceeding these caps are rejected. The budget is non-resetting — once spent, the key stops working.
 
 ### Use with Claude Code
 
@@ -294,7 +304,7 @@ curl -X GET "$LITELLM_SERVICE_URL/key/info?key=sk-VIRTUAL-KEY" \
   -H "Authorization: Bearer $LITELLM_MASTER_KEY"
 ```
 
-Key fields: `spend` (amount used), `max_budget` ($1.00), `budget_reset_at` (expiry timestamp).
+Key fields: `spend` (amount used), `max_budget` ($1.00), `expires` (expiry timestamp).
 
 ## Maintenance
 

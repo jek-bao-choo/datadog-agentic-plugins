@@ -17,3 +17,11 @@ model_list:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/DATABASE_URL
+
+litellm_settings:
+  default_key_generate_params:
+    max_budget: 1
+    duration: "1d"
+  upperbound_key_generate_params:
+    max_budget: 7
+    duration: "4d"
