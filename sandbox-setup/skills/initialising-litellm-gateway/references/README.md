@@ -41,11 +41,13 @@ LiteLLM Gateway deployed on Google Cloud Run with PostgreSQL (Cloud SQL) for bud
      │                   └────────────────────────┼──────────────────────────────────┘
      │                                            │
      │                                            v
-     │                                  ┌───────────────────┐
-     │                                  │   Anthropic API    │
-     │                                  │                    │
-     │                                  │  claude-opus-4-6   │
-     │                                  └───────────────────┘
+     │                                  ┌─────────────────────┐
+     │                                  │    Anthropic API     │
+     │                                  │                      │
+     │                                  │  claude-opus-4-6     │
+     │                                  │  claude-sonnet-4-6   │
+     │                                  │  claude-haiku-4-5    │
+     │                                  └─────────────────────┘
 ```
 
 **Flow:** Client sends request with virtual key -> Cloud Run authenticates & checks budget -> If within budget, forwards to Anthropic -> Records spend in PostgreSQL -> Returns response to client.
@@ -54,29 +56,21 @@ LiteLLM Gateway deployed on Google Cloud Run with PostgreSQL (Cloud SQL) for bud
 
 | Resource | Value |
 |---|---|
-| **GCP Project** | `datadog-ese-sandbox` |
+| **GCP Project** | See `.env` → `GCP_PROJECT_ID` |
 | **Region** | `asia-southeast1` |
 | **Cloud Run Service** | `litellm-proxy` |
-| **Service URL** | `https://litellm-proxy-449012790678.asia-southeast1.run.app` |
+| **Service URL** | See `.env` → `LITELLM_SERVICE_URL` |
 | **Cloud SQL Instance** | `litellm-db-asia` (PostgreSQL 15, `db-custom-2-7680`, Enterprise) |
-| **DB Connection Name** | `datadog-ese-sandbox:asia-southeast1:litellm-db-asia` |
+| **DB Connection Name** | `$GCP_PROJECT_ID:asia-southeast1:litellm-db-asia` |
 | **DB Password** | See `.env` → `DB_PASSWORD` |
 | **Master Key** | See `.env` → `LITELLM_MASTER_KEY` |
 | **Container Image** | `ghcr.io/berriai/litellm:main-latest` |
-| **Memory / CPU** | 2 GiB / 1 vCPU (with CPU boost) |
-| **Available Models** | `claude-opus-4-6` |
-
-### Active Virtual Keys
-
-| Key | Models | Budget | Duration | Created |
-|---|---|---|---|---|
-| `sk-<your-virtual-key>` | claude-opus-4-6 | $1.00 | 2 days | 2026-03-09 |
+| **Memory / CPU** | 4 GiB / 2 vCPU (with CPU boost, min 1 instance) |
+| **Available Models** | `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5` |
 
 ## App Files
 
-Two files are needed in the build directory (e.g. `my-litellm-gateway/`):
-
-> **Note:** Avoid using `/tmp/` as your build directory — it gets wiped on reboot. Use a persistent location like your home directory or a project folder.
+Two files are needed for the deployment — both are included in this directory:
 
 ### config.yaml
 
@@ -87,6 +81,16 @@ model_list:
   - model_name: claude-opus-4-6
     litellm_params:
       model: anthropic/claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
       api_key: os.environ/ANTHROPIC_API_KEY
 
 general_settings:
@@ -125,6 +129,12 @@ postgresql://postgres:<DB_PASSWORD>@localhost:5432/postgres?host=/cloudsql/<CONN
 - `gcloud` CLI installed and authenticated (`gcloud auth login`)
 - Anthropic API key with funded account
 
+```bash
+export GCP_PROJECT_ID="your-gcp-project-id"   # replace with your actual project ID
+```
+
+_Set this once — the commands below reference `$GCP_PROJECT_ID`._
+
 ### Step 1: Enable GCP APIs
 
 ```bash
@@ -141,9 +151,9 @@ gcloud services enable \
 The Cloud Run default service account needs the Cloud SQL Client role:
 
 ```bash
-PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format="value(projectNumber)")
+PROJECT_NUMBER=$(gcloud projects describe $GCP_PROJECT_ID --format="value(projectNumber)")
 
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
   --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
   --role="roles/cloudsql.client" \
   --condition=None
@@ -170,37 +180,32 @@ gcloud sql users set-password postgres \
 gcloud sql instances describe litellm-db --format="value(connectionName)"
 ```
 
-### Step 4: Create App Files
+### Step 4: App Files
 
-```bash
-mkdir my-litellm-gateway && cd my-litellm-gateway
-```
-
-Create `config.yaml` and `Dockerfile` as shown in the [App Files](#app-files) section above.
+The `config.yaml` and `Dockerfile` are already in this directory. See the [App Files](#app-files) section above for their contents.
 
 ### Step 5: Deploy to Cloud Run
 
 ```bash
-cd my-litellm-gateway
-
 gcloud run deploy litellm-proxy \
   --source . \
   --port 8080 \
   --allow-unauthenticated \
   --region asia-southeast1 \
-  --memory 2Gi \
-  --cpu 1 \
+  --memory 4Gi \
+  --cpu 2 \
   --timeout 300 \
   --cpu-boost \
-  --set-cloudsql-instances="YOUR_PROJECT:asia-southeast1:litellm-db" \
-  --set-env-vars="ANTHROPIC_API_KEY=sk-ant-YOUR-KEY,LITELLM_MASTER_KEY=YOUR_MASTER_KEY,DATABASE_URL=postgresql://postgres:YOUR_DB_PASSWORD@localhost:5432/postgres?host=/cloudsql/YOUR_PROJECT:asia-southeast1:litellm-db"
+  --min-instances 1 \
+  --set-cloudsql-instances="$GCP_PROJECT_ID:asia-southeast1:litellm-db" \
+  --set-env-vars="ANTHROPIC_API_KEY=sk-ant-YOUR-KEY,LITELLM_MASTER_KEY=YOUR_MASTER_KEY,DATABASE_URL=postgresql://postgres:YOUR_DB_PASSWORD@localhost:5432/postgres?host=/cloudsql/$GCP_PROJECT_ID:asia-southeast1:litellm-db"
 ```
 
-> **Note:** Replace `YOUR_PROJECT`, `YOUR_DB_PASSWORD`, `YOUR_MASTER_KEY`, and `sk-ant-YOUR-KEY` with your actual values (see `.env.example`). The `--set-cloudsql-instances` value must match the connection name from Step 3.
-> **Memory:** Must be at least 2 GiB. The default 512 MiB causes OOM crashes.
+> **Note:** Replace `YOUR_DB_PASSWORD`, `YOUR_MASTER_KEY`, and `sk-ant-YOUR-KEY` with your actual values (see `.env.example`). The `--set-cloudsql-instances` value must match the connection name from Step 3.
+> **Memory:** Must be at least 2 GiB (we use 4 GiB). The default 512 MiB causes OOM crashes.
 > **CPU boost:** Recommended — LiteLLM + Prisma engine need extra CPU at startup.
 
-> The actual deployment uses instance name `litellm-db-asia` and project `datadog-ese-sandbox` — see the [Current Deployment](#current-deployment) table for exact values.
+> The actual deployment uses instance name `litellm-db-asia` and project from `.env` → `GCP_PROJECT_ID` — see the [Current Deployment](#current-deployment) table for exact values.
 
 ### Step 6: Update Anthropic API Key (if deployed with placeholder)
 
@@ -216,24 +221,24 @@ gcloud run services update litellm-proxy \
 
 ```bash
 # Unauthenticated liveness probe
-curl "https://litellm-proxy-449012790678.asia-southeast1.run.app/health/liveliness"
+curl "$LITELLM_SERVICE_URL/health/liveliness"
 # Returns: "I'm alive!"
 
 # Authenticated health check (tests model connectivity)
-curl "https://litellm-proxy-449012790678.asia-southeast1.run.app/health" \
+curl "$LITELLM_SERVICE_URL/health" \
   -H "Authorization: Bearer YOUR_MASTER_KEY"
 ```
 
 ### Generate a Virtual Key
 
 ```bash
-curl -X POST "https://litellm-proxy-449012790678.asia-southeast1.run.app/key/generate" \
+curl -X POST "$LITELLM_SERVICE_URL/key/generate" \
   -H "Authorization: Bearer YOUR_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "max_budget": 0.5,
     "budget_duration": "1d",
-    "models": ["claude-opus-4-6"],
+    "models": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
     "metadata": {"user": "example-user"}
   }'
 ```
@@ -245,7 +250,7 @@ The response contains a `key` field — this is the virtual token to distribute.
 To point Claude Code at the LiteLLM proxy instead of the Anthropic API directly:
 
 ```bash
-export ANTHROPIC_BASE_URL="https://litellm-proxy-449012790678.asia-southeast1.run.app"
+export ANTHROPIC_BASE_URL="$LITELLM_SERVICE_URL"
 export ANTHROPIC_API_KEY="sk-YOUR-VIRTUAL-KEY"
 claude
 ```
@@ -255,7 +260,7 @@ Or configure it in `~/.claude/settings.json`:
 ```json
 {
   "env": {
-    "ANTHROPIC_BASE_URL": "https://litellm-proxy-449012790678.asia-southeast1.run.app",
+    "ANTHROPIC_BASE_URL": "$LITELLM_SERVICE_URL",
     "ANTHROPIC_API_KEY": "sk-YOUR-VIRTUAL-KEY"
   }
 }
@@ -266,7 +271,7 @@ Replace `sk-YOUR-VIRTUAL-KEY` with the virtual key generated in the previous ste
 ### Test Chat Completion
 
 ```bash
-curl -X POST "https://litellm-proxy-449012790678.asia-southeast1.run.app/v1/chat/completions" \
+curl -X POST "$LITELLM_SERVICE_URL/v1/chat/completions" \
   -H "Authorization: Bearer sk-VIRTUAL-KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -278,7 +283,7 @@ curl -X POST "https://litellm-proxy-449012790678.asia-southeast1.run.app/v1/chat
 ### Check Budget Usage
 
 ```bash
-curl -X GET "https://litellm-proxy-449012790678.asia-southeast1.run.app/key/info?key=sk-VIRTUAL-KEY" \
+curl -X GET "$LITELLM_SERVICE_URL/key/info?key=sk-VIRTUAL-KEY" \
   -H "Authorization: Bearer YOUR_MASTER_KEY"
 ```
 
@@ -297,7 +302,7 @@ Key fields: `spend` (amount used), `max_budget` ($1.00), `budget_reset_at` (expi
    ```
 2. Redeploy:
    ```bash
-   cd my-litellm-gateway && gcloud run deploy litellm-proxy --source . --region asia-southeast1
+   gcloud run deploy litellm-proxy --source . --region asia-southeast1
    ```
 3. Generate a new virtual key that includes the model, or update existing keys.
 
@@ -323,13 +328,13 @@ All existing virtual keys remain valid. Only admin operations (key generation, h
 
 ```bash
 gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=litellm-proxy" \
-  --limit=50 --format="value(textPayload)" --project=datadog-ese-sandbox
+  --limit=50 --format="value(textPayload)" --project=$GCP_PROJECT_ID
 ```
 
 ### Revoke a Virtual Key
 
 ```bash
-curl -X POST "https://litellm-proxy-449012790678.asia-southeast1.run.app/key/delete" \
+curl -X POST "$LITELLM_SERVICE_URL/key/delete" \
   -H "Authorization: Bearer YOUR_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"keys": ["sk-VIRTUAL-KEY-TO-REVOKE"]}'
@@ -338,7 +343,7 @@ curl -X POST "https://litellm-proxy-449012790678.asia-southeast1.run.app/key/del
 ### List All Virtual Keys
 
 ```bash
-curl -X GET "https://litellm-proxy-449012790678.asia-southeast1.run.app/key/list" \
+curl -X GET "$LITELLM_SERVICE_URL/key/list" \
   -H "Authorization: Bearer YOUR_MASTER_KEY"
 ```
 
@@ -354,7 +359,7 @@ gcloud sql instances delete litellm-db-asia
 
 ## Security Note
 
-Sensitive values (DB password, master key, Anthropic API key) are not stored in this README. See `.env.example` for the required secrets. For production deployments, store these in [GCP Secret Manager](https://cloud.google.com/secret-manager) and reference them via Cloud Run's secret mounting feature instead of `--set-env-vars`.
+Sensitive values (DB password, master key, Anthropic API key, service URL, GCP project ID) are not stored in this README. See `.env.example` for the required secrets. For production deployments, store these in [GCP Secret Manager](https://cloud.google.com/secret-manager) and reference them via Cloud Run's secret mounting feature instead of `--set-env-vars`.
 
 ## Cost
 
