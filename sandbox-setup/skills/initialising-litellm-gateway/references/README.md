@@ -68,6 +68,15 @@ LiteLLM Gateway deployed on Google Cloud Run with PostgreSQL (Cloud SQL) for bud
 | **Memory / CPU** | 4 GiB / 2 vCPU (with CPU boost, min 1 instance) |
 | **Available Models** | `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5` |
 
+## Load Environment
+
+Before running any commands below, export the variables from `.env`:
+
+```bash
+source .env
+export GCP_PROJECT_ID LITELLM_SERVICE_URL LITELLM_MASTER_KEY DB_PASSWORD UI_USERNAME UI_PASSWORD
+```
+
 ## App Files
 
 Two files are needed for the deployment — both are included in this directory:
@@ -115,6 +124,8 @@ CMD ["--config", "/app/config.yaml", "--port", "8080"]
 | `ANTHROPIC_API_KEY` | Your Anthropic `sk-ant-...` API key |
 | `LITELLM_MASTER_KEY` | Admin key for managing virtual keys (see `.env`) |
 | `DATABASE_URL` | PostgreSQL connection string via Cloud SQL Unix socket |
+| `UI_USERNAME` | _(Optional)_ Username for the LiteLLM admin UI at `/ui` |
+| `UI_PASSWORD` | _(Optional)_ Password for the LiteLLM admin UI at `/ui` |
 
 The `DATABASE_URL` format for Cloud SQL on Cloud Run:
 ```
@@ -129,11 +140,7 @@ postgresql://postgres:<DB_PASSWORD>@localhost:5432/postgres?host=/cloudsql/<CONN
 - `gcloud` CLI installed and authenticated (`gcloud auth login`)
 - Anthropic API key with funded account
 
-```bash
-export GCP_PROJECT_ID="your-gcp-project-id"   # replace with your actual project ID
-```
-
-_Set this once — the commands below reference `$GCP_PROJECT_ID`._
+Ensure you have run the [Load Environment](#load-environment) step above so `$GCP_PROJECT_ID` and other variables are set.
 
 ### Step 1: Enable GCP APIs
 
@@ -201,7 +208,7 @@ gcloud run deploy litellm-proxy \
   --set-env-vars="ANTHROPIC_API_KEY=sk-ant-YOUR-KEY,LITELLM_MASTER_KEY=YOUR_MASTER_KEY,DATABASE_URL=postgresql://postgres:YOUR_DB_PASSWORD@localhost:5432/postgres?host=/cloudsql/$GCP_PROJECT_ID:asia-southeast1:litellm-db"
 ```
 
-> **Note:** Replace `YOUR_DB_PASSWORD`, `YOUR_MASTER_KEY`, and `sk-ant-YOUR-KEY` with your actual values (see `.env.example`). The `--set-cloudsql-instances` value must match the connection name from Step 3.
+> **Note:** Replace `YOUR_DB_PASSWORD`, `YOUR_MASTER_KEY`, and `sk-ant-YOUR-KEY` with your actual values (see `.env.example`). Optionally add `UI_USERNAME` and `UI_PASSWORD` to enable the admin UI (see [Admin UI](#admin-ui-key-consumption--expiry)). The `--set-cloudsql-instances` value must match the connection name from Step 3.
 > **Memory:** Must be at least 2 GiB (we use 4 GiB). The default 512 MiB causes OOM crashes.
 > **CPU boost:** Recommended — LiteLLM + Prisma engine need extra CPU at startup.
 
@@ -226,14 +233,14 @@ curl "$LITELLM_SERVICE_URL/health/liveliness"
 
 # Authenticated health check (tests model connectivity)
 curl "$LITELLM_SERVICE_URL/health" \
-  -H "Authorization: Bearer YOUR_MASTER_KEY"
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY"
 ```
 
 ### Generate a Virtual Key
 
 ```bash
 curl -X POST "$LITELLM_SERVICE_URL/key/generate" \
-  -H "Authorization: Bearer YOUR_MASTER_KEY" \
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "max_budget": 0.5,
@@ -260,13 +267,13 @@ Or configure it in `~/.claude/settings.json`:
 ```json
 {
   "env": {
-    "ANTHROPIC_BASE_URL": "$LITELLM_SERVICE_URL",
+    "ANTHROPIC_BASE_URL": "<YOUR_LITELLM_SERVICE_URL>",
     "ANTHROPIC_API_KEY": "sk-YOUR-VIRTUAL-KEY"
   }
 }
 ```
 
-Replace `sk-YOUR-VIRTUAL-KEY` with the virtual key generated in the previous step.
+> **Note:** JSON does not expand shell variables. Replace `<YOUR_LITELLM_SERVICE_URL>` with the actual URL from `.env` (the value of `LITELLM_SERVICE_URL`), and `sk-YOUR-VIRTUAL-KEY` with the virtual key generated in the previous step.
 
 ### Test Chat Completion
 
@@ -284,7 +291,7 @@ curl -X POST "$LITELLM_SERVICE_URL/v1/chat/completions" \
 
 ```bash
 curl -X GET "$LITELLM_SERVICE_URL/key/info?key=sk-VIRTUAL-KEY" \
-  -H "Authorization: Bearer YOUR_MASTER_KEY"
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY"
 ```
 
 Key fields: `spend` (amount used), `max_budget` ($1.00), `budget_reset_at` (expiry timestamp).
@@ -293,11 +300,11 @@ Key fields: `spend` (amount used), `max_budget` ($1.00), `budget_reset_at` (expi
 
 ### Add a New Model
 
-1. Edit `config.yaml` — add an entry under `model_list`:
+1. Edit `config.yaml` — add an entry under `model_list` (example for a new model):
    ```yaml
-   - model_name: claude-sonnet-4-6
+   - model_name: claude-sonnet-4-20250514
      litellm_params:
-       model: anthropic/claude-sonnet-4-6
+       model: anthropic/claude-sonnet-4-20250514
        api_key: os.environ/ANTHROPIC_API_KEY
    ```
 2. Redeploy:
@@ -335,7 +342,7 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 
 ```bash
 curl -X POST "$LITELLM_SERVICE_URL/key/delete" \
-  -H "Authorization: Bearer YOUR_MASTER_KEY" \
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"keys": ["sk-VIRTUAL-KEY-TO-REVOKE"]}'
 ```
@@ -344,8 +351,36 @@ curl -X POST "$LITELLM_SERVICE_URL/key/delete" \
 
 ```bash
 curl -X GET "$LITELLM_SERVICE_URL/key/list" \
-  -H "Authorization: Bearer YOUR_MASTER_KEY"
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY"
 ```
+
+### Admin UI (Key Consumption & Expiry)
+
+LiteLLM ships with a built-in admin dashboard at `/ui` that lets you visually monitor key spend, budgets, and expiry without crafting curl commands.
+
+#### 1. Enable the UI
+
+Add `UI_USERNAME` and `UI_PASSWORD` env vars to the Cloud Run service:
+
+```bash
+gcloud run services update litellm-proxy \
+  --region asia-southeast1 \
+  --update-env-vars="UI_USERNAME=$UI_USERNAME,UI_PASSWORD=$UI_PASSWORD"
+```
+
+> The values come from `.env` (`UI_USERNAME` and `UI_PASSWORD`). Make sure you have run the [Load Environment](#load-environment) step.
+
+#### 2. Access the UI
+
+Open `$LITELLM_SERVICE_URL/ui` in a browser and log in with the username and password set above.
+
+#### 3. What you can see
+
+- Virtual key spend and remaining budget
+- Budget limits and reset times
+- Key expiry dates
+- Per-model usage breakdown
+- Create and revoke virtual keys directly from the dashboard
 
 ### Tear Down
 
