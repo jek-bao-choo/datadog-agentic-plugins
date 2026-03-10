@@ -148,13 +148,17 @@ ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo chown -R www-data:www-data /var/www/ht
 
 ### 7. Configure Nginx
 
-Copy the config file to the EC2 instance and enable it:
+Copy the config file to the EC2 instance and enable it.
+
+#### 7a. Copy the Nginx config to the EC2 instance
 
 ```bash
-# Copy the Nginx config
 scp -i <KEY_PATH> travellist-nginx.conf ubuntu@<EC2_HOST>:/tmp/travellist-nginx.conf
+```
 
-# Install config and enable the site
+#### 7b. Install the config and enable the site
+
+```bash
 ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo cp /tmp/travellist-nginx.conf /etc/nginx/sites-available/travellist-nginx.conf && \
     sudo ln -sf /etc/nginx/sites-available/travellist-nginx.conf /etc/nginx/sites-enabled/travellist-nginx.conf && \
     sudo rm -f /etc/nginx/sites-enabled/default && \
@@ -195,6 +199,123 @@ Open in a browser:
 
 ---
 
+## Phase 3 — Datadog APM Instrumentation
+
+Instrument the Laravel application with Datadog APM tracing. Choose one of the two options below. Both assume SSH access to the EC2 instance from Phase 2.
+
+### Option A — Single Step Instrumentation
+
+The Datadog Agent install script can install both the Agent **and** the PHP tracer in one step when APM Instrumentation is enabled.
+
+Docs: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm/linux/
+
+#### 1. Install the Datadog Agent with APM Instrumentation
+
+> **Note:** You can also obtain a pre-filled version of this command from the Datadog UI at **Integrations → Agent → Linux** with **APM Instrumentation** enabled.
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'DD_API_KEY=<DD_API_KEY> \
+    DD_SITE="<DD_SITE>" \
+    DD_APM_INSTRUMENTATION_ENABLED=host \
+    DD_APM_INSTRUMENTATION_LIBRARIES="php:1" \
+    bash -c "$(curl -L https://install.datadoghq.com/scripts/install_script_agent7.sh)"'
+```
+
+> Replace `<DD_API_KEY>` and `<DD_SITE>` (e.g. `datadoghq.com`) with your values.
+
+#### 2. Restart PHP-FPM
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo systemctl restart php8.3-fpm'
+```
+
+#### 3. Verify
+
+```bash
+# Confirm ddtrace extension is loaded
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'php -m | grep ddtrace'
+# → ddtrace
+
+# Check ddtrace appears in phpinfo output
+curl -s http://<EC2_PUBLIC_IP>/phpinfo | grep -o 'ddtrace'
+# → ddtrace
+
+# Generate traffic for APM traces
+curl -s -o /dev/null -w "%{http_code}" http://<EC2_PUBLIC_IP>/
+# → 200
+```
+
+---
+
+### Option B — Manual PHP Tracer Install
+
+Install the Datadog Agent and `dd-trace-php` separately for more control over versions, configuration, and features.
+
+Docs:
+- https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/php/
+- https://docs.datadoghq.com/tracing/trace_collection/library_config/php/
+
+#### 1. Install the Datadog Agent
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'DD_API_KEY=<DD_API_KEY> \
+    DD_SITE="<DD_SITE>" \
+    bash -c "$(curl -L https://install.datadoghq.com/scripts/install_script_agent7.sh)"'
+```
+
+#### 2. Install the PHP tracer
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'curl -LO https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php && \
+    sudo php datadog-setup.php --php-bin=all'
+```
+
+#### 3. Configure unified service tagging
+
+Set service tags via the PHP-FPM pool config:
+
+> **Note:** This command appends to the file. If re-running, first check that the entries don't already exist:
+> `ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'grep DD_SERVICE /etc/php/8.3/fpm/pool.d/www.conf'`
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> "sudo tee -a /etc/php/8.3/fpm/pool.d/www.conf > /dev/null <<'EOF'
+
+env[DD_SERVICE] = travellist
+env[DD_ENV] = sandbox
+env[DD_VERSION] = 1.0.0
+EOF"
+```
+
+Alternatively, add the values to an INI file:
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'echo -e "\ndatadog.service = travellist\ndatadog.env = sandbox\ndatadog.version = 1.0.0" | sudo tee -a /etc/php/8.3/fpm/conf.d/98-ddtrace.ini'
+```
+
+#### 4. Restart PHP-FPM
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo systemctl restart php8.3-fpm'
+```
+
+#### 5. Verify
+
+```bash
+# Confirm ddtrace extension is loaded
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'php -m | grep ddtrace'
+# → ddtrace
+
+# Check ddtrace appears in phpinfo output
+curl -s http://<EC2_PUBLIC_IP>/phpinfo | grep -o 'ddtrace'
+# → ddtrace
+
+# Generate traffic for APM traces
+curl -s -o /dev/null -w "%{http_code}" http://<EC2_PUBLIC_IP>/
+# → 200
+```
+
+---
+
 ## Teardown
 
 ### Phase 1
@@ -203,9 +324,14 @@ Open in a browser:
 docker rm -f travellist
 ```
 
-### Phase 2
+### Phase 2 & 3
 
 ```bash
+# Stop and remove the Datadog Agent (if installed)
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo systemctl stop datadog-agent && \
+    sudo apt-get remove -y datadog-agent && \
+    sudo rm -rf /etc/datadog-agent /opt/datadog-agent'
+
 # Remove the Laravel project
 ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo rm -rf /var/www/html/travellist'
 
