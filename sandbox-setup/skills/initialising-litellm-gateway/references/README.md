@@ -11,7 +11,7 @@ LiteLLM Gateway deployed on Google Cloud Run with PostgreSQL (Cloud SQL) for bud
                          │                                                         │
 ┌──────────┐   HTTPS     │  ┌──────────────────────────────────┐                   │
 │  Client   │────────────┼─>│        Cloud Run Service          │                   │
-│ (curl /   │            │  │       litellm-proxy               │                   │
+│ (curl /   │            │  │       litellm-gateway               │                   │
 │  app /    │            │  │                                    │                   │
 │  Claude   │            │  │  ┌────────────────────────────┐   │                   │
 │  Code)    │            │  │  │    LiteLLM Proxy Server     │   │                   │
@@ -58,7 +58,7 @@ LiteLLM Gateway deployed on Google Cloud Run with PostgreSQL (Cloud SQL) for bud
 |---|---|
 | **GCP Project** | See `.env` → `GCP_PROJECT_ID` |
 | **Region** | `asia-southeast1` |
-| **Cloud Run Service** | `litellm-proxy` |
+| **Cloud Run Service** | `litellm-gateway` |
 | **Service URL** | See `.env` → `LITELLM_SERVICE_URL` |
 | **Cloud SQL Instance** | `litellm-db-asia` (PostgreSQL 15, `db-custom-2-7680`, Enterprise) |
 | **DB Connection Name** | `$GCP_PROJECT_ID:asia-southeast1:litellm-db-asia` |
@@ -202,7 +202,7 @@ The `config.yaml` and `Dockerfile` are already in this directory. See the [App F
 ### Step 5: Deploy to Cloud Run
 
 ```bash
-gcloud run deploy litellm-proxy \
+gcloud run deploy litellm-gateway \
   --source . \
   --port 8080 \
   --allow-unauthenticated \
@@ -225,7 +225,7 @@ gcloud run deploy litellm-proxy \
 ### Step 6: Update Anthropic API Key (if deployed with placeholder)
 
 ```bash
-gcloud run services update litellm-proxy \
+gcloud run services update litellm-gateway \
   --region asia-southeast1 \
   --update-env-vars="ANTHROPIC_API_KEY=sk-ant-YOUR-REAL-KEY"
 ```
@@ -319,14 +319,14 @@ Key fields: `spend` (amount used), `max_budget` ($1.00), `expires` (expiry times
    ```
 2. Redeploy:
    ```bash
-   gcloud run deploy litellm-proxy --source . --region asia-southeast1
+   gcloud run deploy litellm-gateway --source . --region asia-southeast1
    ```
 3. Generate a new virtual key that includes the model, or update existing keys.
 
 ### Rotate the Anthropic API Key
 
 ```bash
-gcloud run services update litellm-proxy \
+gcloud run services update litellm-gateway \
   --region asia-southeast1 \
   --update-env-vars="ANTHROPIC_API_KEY=sk-ant-NEW-KEY"
 ```
@@ -334,7 +334,7 @@ gcloud run services update litellm-proxy \
 ### Rotate the Master Key
 
 ```bash
-gcloud run services update litellm-proxy \
+gcloud run services update litellm-gateway \
   --region asia-southeast1 \
   --update-env-vars="LITELLM_MASTER_KEY=sk-new-master-key"
 ```
@@ -344,7 +344,7 @@ All existing virtual keys remain valid. Only admin operations (key generation, h
 ### View Logs
 
 ```bash
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=litellm-proxy" \
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=litellm-gateway" \
   --limit=50 --format="value(textPayload)" --project=$GCP_PROJECT_ID
 ```
 
@@ -373,7 +373,7 @@ LiteLLM ships with a built-in admin dashboard at `/ui` that lets you visually mo
 Add `UI_USERNAME` and `UI_PASSWORD` env vars to the Cloud Run service:
 
 ```bash
-gcloud run services update litellm-proxy \
+gcloud run services update litellm-gateway \
   --region asia-southeast1 \
   --update-env-vars="UI_USERNAME=$UI_USERNAME,UI_PASSWORD=$UI_PASSWORD"
 ```
@@ -396,7 +396,7 @@ Open `$LITELLM_SERVICE_URL/ui` in a browser and log in with the username and pas
 
 ```bash
 # Delete Cloud Run service
-gcloud run services delete litellm-proxy --region asia-southeast1
+gcloud run services delete litellm-gateway --region asia-southeast1
 
 # Delete Cloud SQL instance (irreversible)
 gcloud sql instances delete litellm-db-asia
