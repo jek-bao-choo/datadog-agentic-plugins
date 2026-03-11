@@ -2,7 +2,7 @@
 
 A marketplace of agentic plugins and skills that empower coding agents to set up and configure Datadog for a PoC. Not endorsed by Datadog. The plugins are unofficial and reflect my personal understanding of agentic coding plugins.
 
-## Claude
+## Claude Code
 
 **Add the plugin:**
 
