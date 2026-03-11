@@ -2,9 +2,7 @@
 
 A marketplace of agentic plugins and skills that empower coding agents to set up and configure Datadog for a PoC. Not endorsed by Datadog. The plugins are unofficial and reflect my personal understanding of agentic coding plugins.
 
-## Assuming a user starting on a fresh EC2 Ubuntu
-
-Two commands on a fresh EC2 Ubuntu instance with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) already installed:
+## Claude
 
 **Add the plugin:**
 
@@ -27,9 +25,13 @@ claude plugin marketplace add https://github.com/jek-bao-choo/datadog-agentic-pl
 
 ```
 datadog-agentic-plugins/
-├── starter-kit/
+├── .claude-plugin/
+│   └── marketplace.json
+│
+├── startup-toolkit/
 │   ├── .claude-plugin/
 │   │   └── plugin.json
+│   ├── .mcp.json
 │   ├── commands/
 │   │   └── showing-menu.md
 │   └── skills/
@@ -41,33 +43,48 @@ datadog-agentic-plugins/
 │   │   └── plugin.json
 │   └── skills/
 │       └── monitoring-ec2-ubuntu-v22/
-│           └── SKILL.md
+│           ├── SKILL.md
+│           ├── assets/
+│           ├── references/
+│           └── scripts/
 │
 ├── gcp-integration/
 │   ├── .claude-plugin/
 │   │   └── plugin.json
 │   └── skills/
 │       ├── monitoring-gcp-apigee/
+│       │   ├── assets/
+│       │   └── references/
 │       └── monitoring-gke-standard-v1dot34/
+│           ├── assets/
+│           └── references/
 │
 ├── java-instrumentation/
 │   ├── .claude-plugin/
 │   │   └── plugin.json
 │   └── skills/
 │       └── monitoring-java-spring-boot-v3dot5dot9/
+│           ├── assets/
+│           └── references/
 │
 ├── php-instrumentation/
 │   ├── .claude-plugin/
 │   │   └── plugin.json
 │   └── skills/
 │       ├── monitoring-laravel-v12-php-v8dot3-nginx/
+│       │   └── references/
 │       └── monitoring-laravel-v8-php-v7dot4-apache2/
+│           └── references/
 │
 ├── sandbox-setup/
 │   ├── .claude-plugin/
 │   │   └── plugin.json
 │   └── skills/
 │       ├── initialising-litellm-gateway/
+│       │   └── references/
 │       └── initialising-splunk-enterprise/
-│           └── SKILL.md
+│           ├── SKILL.md
+│           ├── assets/
+│           ├── references/
+│           └── scripts/
 ```
