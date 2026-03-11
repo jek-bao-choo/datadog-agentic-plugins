@@ -23,15 +23,6 @@ claude plugin marketplace add https://github.com/jek-bao-choo/datadog-agentic-pl
 /startup-toolkit:showing-menu
 ```
 
-**What this does:**
-
-| Step | Command | Purpose |
-|------|---------|---------|
-| 1 | `git clone --depth 1` | Shallow clone of plugins (fast) |
-| 2a | `--settings '{"env":{...}}'` | Injects `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` |
-| 2b | `--plugin-dir /tmp/datadog-agentic-plugins/starter-kit` | Loads the starter-kit plugin |
-| 2c | `"/starter-kit:showing-menu"` | Shows the getting-started menu |
-
 ## Project Structure
 
 ```
