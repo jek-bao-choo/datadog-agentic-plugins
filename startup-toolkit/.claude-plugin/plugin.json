@@ -1,7 +1,8 @@
 {
-  "name": "starter-kit",
+  "name": "startup-toolkit",
   "description": "Getting started with Datadog using documentation lookup and guided menu",
   "version": "0.1.0",
-  "commands": "./commands",
-  "skills": "./skills"
+  "author": {
+    "name": "Jek Bao"
+  }
 }

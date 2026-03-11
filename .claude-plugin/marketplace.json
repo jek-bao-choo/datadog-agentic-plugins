@@ -38,8 +38,8 @@
       "version": "0.1.0"
     },
     {
-      "name": "starter-kit",
-      "source": "./starter-kit",
+      "name": "startup-toolkit",
+      "source": "./startup-toolkit",
       "description": "Getting started with Datadog using documentation lookup and guided menu",
       "version": "0.1.0"
     }
