@@ -6,25 +6,22 @@ A marketplace of agentic plugins and skills that empower coding agents to set up
 
 Two commands on a fresh EC2 Ubuntu instance with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) already installed:
 
-**Step 1 — Download the plugin:**
+**Add the plugin:**
+
 
 ```bash
-rm -rf /tmp/datadog-agentic-plugins && git clone --depth 1 https://github.com/jek-bao-choo/datadog-agentic-plugins /tmp/datadog-agentic-plugins
+claude plugin marketplace add https://github.com/jek-bao-choo/datadog-agentic-plugins 
 ```
 
-**Step 2 — Start Claude with credentials, plugin, and menu:**
+**Start Claude then add the plugin**
 
 ```bash
-claude --plugin-dir /tmp/datadog-agentic-plugins/starter-kit "/starter-kit:showing-menu"
+/plugin marketplace add https://github.com/jek-bao-choo/datadog-agentic-plugins
+
+/plugin install startup-toolkit@datadog-agentic-plugins
+
+/startup-toolkit:showing-menu
 ```
-
-or
-
-```bash
-claude --settings '{"env":{"ANTHROPIC_BASE_URL":"YYY_PROVIDED_BY_YOUR_ASSIGNED_SALES_ENGINEER_YYY","ANTHROPIC_AUTH_TOKEN":"YYY_PROVIDED_BY_YOUR_ASSIGNED_SALES_ENGINEER_YYY"}}' --plugin-dir /tmp/datadog-agentic-plugins/starter-kit "/starter-kit:showing-menu"
-```
-
-Replace the `YYY_PROVIDED_BY_YOUR_ASSIGNED_SALES_ENGINEER_YYY` placeholders with the values provided by your assigned Sales Engineer.
 
 **What this does:**
 
