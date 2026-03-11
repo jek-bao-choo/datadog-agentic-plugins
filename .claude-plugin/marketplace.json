@@ -1,0 +1,47 @@
+{
+  "name": "datadog-agentic-plugins",
+  "owner": {
+    "name": "Jek Bao"
+  },
+  "metadata": {
+    "description": "Project DateNight - Unofficial Datadog integration and instrumentation plugins"
+  },
+  "plugins": [
+    {
+      "name": "aws-integration",
+      "source": "./aws-integration",
+      "description": "Set up Datadog AWS integration",
+      "version": "0.1.0"
+    },
+    {
+      "name": "gcp-integration",
+      "source": "./gcp-integration",
+      "description": "Set up Datadog GCP integration",
+      "version": "0.1.0"
+    },
+    {
+      "name": "java-instrumentation",
+      "source": "./java-instrumentation",
+      "description": "Instrument Java applications with Datadog APM",
+      "version": "0.1.0"
+    },
+    {
+      "name": "php-instrumentation",
+      "source": "./php-instrumentation",
+      "description": "Instrument PHP applications with Datadog APM",
+      "version": "0.1.0"
+    },
+    {
+      "name": "sandbox-setup",
+      "source": "./sandbox-setup",
+      "description": "Initialise sandbox environments for Datadog testing",
+      "version": "0.1.0"
+    },
+    {
+      "name": "starter-kit",
+      "source": "./starter-kit",
+      "description": "Getting started with Datadog using documentation lookup and guided menu",
+      "version": "0.1.0"
+    }
+  ]
+}
