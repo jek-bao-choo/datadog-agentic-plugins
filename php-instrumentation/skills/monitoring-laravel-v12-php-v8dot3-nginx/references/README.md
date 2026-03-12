@@ -229,7 +229,27 @@ ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'DD_API_KEY=<DD_API_KEY> \
 ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo systemctl restart php8.3-fpm'
 ```
 
-#### 3. Verify
+#### 3. Set unified service tags
+
+Single Step instrumentation does not inject `DD_SERVICE`, `DD_ENV`, or `DD_VERSION`. Without this step, the service appears in Datadog as `service:laravel,env:none`. Set them via the PHP-FPM pool config:
+
+> **Note:** This command appends to the file. If re-running, check entries don't already exist first:
+> `ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'grep DD_SERVICE /etc/php/8.3/fpm/pool.d/www.conf'`
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> "sudo tee -a /etc/php/8.3/fpm/pool.d/www.conf > /dev/null <<'EOF'
+
+env[DD_SERVICE] = travellist
+env[DD_ENV] = sandbox
+env[DD_VERSION] = 1.0.0
+EOF"
+```
+
+#### 4. Restart PHP-FPM and verify
+
+```bash
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo systemctl restart php8.3-fpm'
+```
 
 ```bash
 # Confirm ddtrace extension is loaded
@@ -240,10 +260,44 @@ ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'php -m | grep ddtrace'
 curl -s http://<EC2_PUBLIC_IP>/phpinfo | grep -o 'ddtrace'
 # → ddtrace
 
-# Generate traffic for APM traces
-curl -s -o /dev/null -w "%{http_code}" http://<EC2_PUBLIC_IP>/
-# → 200
+# Generate traffic for APM traces (send multiple requests to ensure flush)
+for i in {1..10}; do curl -s -o /dev/null -w "%{http_code}\n" http://<EC2_PUBLIC_IP>/; done
+
+# Confirm agent is receiving traces and is connected to Datadog
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo datadog-agent status'
 ```
+
+Look for the following in the `datadog-agent status` output:
+
+```
+APM Agent
+=========
+  Status: Running
+  ...
+  Receiver (previous minute)
+    From php 8.3.x (fpm-fcgi), client 1.x.x
+      Traces received: N (... bytes)   ← PHP tracer is sending spans
+      Spans received: N
+
+  Writer (previous minute)
+    Traces: N payloads ...             ← may be 0 due to timing (see note below)
+    Stats: N payloads, N stats buckets ← this confirms data is reaching Datadog
+```
+
+> **Note on `Writer: Traces: 0 payloads`** — The writer stats cover only the previous 60-second window and may show 0 if the flush already completed in an earlier window. This does not indicate a problem. The reliable signals are:
+> - `Receiver: Traces received: N` — the PHP tracer is submitting spans locally
+> - `Writer: Stats: N payloads` — aggregated APM stats are being flushed to Datadog
+> - `diagnostics: APM traces … success` — the agent can reach `trace.agent.datadoghq.com`
+
+#### 5. Datadog UI verification
+
+Open **APM → Services** in the Datadog UI:
+https://app.datadoghq.com/apm/services
+
+Look for service **`travellist`** with env **`sandbox`**.
+
+> Allow 1–2 minutes after generating traffic for the service to appear.
+> Individual traces are visible under **APM → Traces** — filter by `service:travellist`.
 
 ---
 
@@ -309,10 +363,44 @@ ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'php -m | grep ddtrace'
 curl -s http://<EC2_PUBLIC_IP>/phpinfo | grep -o 'ddtrace'
 # → ddtrace
 
-# Generate traffic for APM traces
-curl -s -o /dev/null -w "%{http_code}" http://<EC2_PUBLIC_IP>/
-# → 200
+# Generate traffic for APM traces (send multiple requests to ensure flush)
+for i in {1..10}; do curl -s -o /dev/null -w "%{http_code}\n" http://<EC2_PUBLIC_IP>/; done
+
+# Confirm agent is receiving traces and is connected to Datadog
+ssh -i <KEY_PATH> ubuntu@<EC2_HOST> 'sudo datadog-agent status'
 ```
+
+Look for the following in the `datadog-agent status` output:
+
+```
+APM Agent
+=========
+  Status: Running
+  ...
+  Receiver (previous minute)
+    From php 8.3.x (fpm-fcgi), client 1.x.x
+      Traces received: N (... bytes)   ← PHP tracer is sending spans
+      Spans received: N
+
+  Writer (previous minute)
+    Traces: N payloads ...             ← may be 0 due to timing (see note below)
+    Stats: N payloads, N stats buckets ← this confirms data is reaching Datadog
+```
+
+> **Note on `Writer: Traces: 0 payloads`** — The writer stats cover only the previous 60-second window and may show 0 if the flush already completed in an earlier window. This does not indicate a problem. The reliable signals are:
+> - `Receiver: Traces received: N` — the PHP tracer is submitting spans locally
+> - `Writer: Stats: N payloads` — aggregated APM stats are being flushed to Datadog
+> - `diagnostics: APM traces … success` — the agent can reach `trace.agent.datadoghq.com`
+
+#### 6. Datadog UI verification
+
+Open **APM → Services** in the Datadog UI:
+https://app.datadoghq.com/apm/services
+
+Look for service **`travellist`** with env **`sandbox`**.
+
+> Allow 1–2 minutes after generating traffic for the service to appear.
+> Individual traces are visible under **APM → Traces** — filter by `service:travellist`.
 
 ---
 
