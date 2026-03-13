@@ -42,6 +42,12 @@
       "source": "./startup-toolkit",
       "description": "Getting started with Datadog using documentation lookup and guided menu",
       "version": "0.1.0"
+    },
+    {
+      "name": "poc-quickstart",
+      "source": "./poc-quickstart",
+      "description": "Interactive Datadog PoC onboarding with auto-menu, MCP integration, live docs, and session documentation",
+      "version": "0.1.0"
     }
   ]
 }

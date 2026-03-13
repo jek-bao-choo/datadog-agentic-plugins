@@ -1,4 +1,4 @@
-# datadog-poc-quickstart
+# poc-quickstart
 
 Interactive onboarding plugin that guides DevOps/SRE engineers through Datadog PoC setup — from session start to documented completion.
 
@@ -21,12 +21,12 @@ Interactive onboarding plugin that guides DevOps/SRE engineers through Datadog P
 ### Claude Code
 
 ```bash
-claude plugin add /path/to/datadog-poc-quickstart
+claude plugin add /path/to/poc-quickstart
 ```
 
 ### Manual
 
-Copy the `datadog-poc-quickstart/` directory into your project or plugins directory.
+Copy the `poc-quickstart/` directory into your project or plugins directory.
 
 ## Configuration
 
@@ -44,7 +44,7 @@ DD_SITE=us1
 
 > **Security:** The plugin auto-adds `.env.datadog` to `.gitignore` and sets permissions to `chmod 600`. Never commit this file.
 
-### Preferences (`.claude/datadog-poc-quickstart.local.md`)
+### Preferences (`.claude/poc-quickstart.local.md`)
 
 Optional non-sensitive settings:
 

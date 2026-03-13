@@ -3,7 +3,7 @@
 .env
 
 # Plugin local settings
-.claude/*.local.md
+.claude/poc-quickstart.local.md
 
 # OS files
 .DS_Store
