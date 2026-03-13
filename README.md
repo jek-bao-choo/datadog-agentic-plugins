@@ -30,12 +30,15 @@ datadog-agentic-plugins/
 ├── .claude-plugin/
 │   └── marketplace.json
 │
-├── startup-toolkit/
+├── quickstart/
 │   ├── .claude-plugin/
 │   │   └── plugin.json
-│   ├── .mcp.json
+│   ├── LICENSE
 │   ├── commands/
-│   │   └── showing-menu.md
+│   │   └── menu.md
+│   ├── hooks/
+│   │   ├── hooks.json
+│   │   └── session-start.sh
 │   └── skills/
 │       └── fetching-datadog-docs/
 │           └── SKILL.md
