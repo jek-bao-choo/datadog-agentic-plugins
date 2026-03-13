@@ -1,7 +1,8 @@
 ---
 description: >-
   Present a menu of Datadog use cases. Triggers on "get started with Datadog",
-  "what can I do with Datadog", "show Datadog options", "showing-menu", etc.
+  "what can I do with Datadog", "show Datadog options", "menu", "showing-menu",
+  "quickstart menu", etc.
 allowed-tools:
   - Bash
   - Read
@@ -147,8 +148,9 @@ Follow these steps after the user selects a use case:
 3. **Ask about MCP** — Ask whether the user would like to connect to the Datadog MCP server for this task (see Datadog MCP Server section above).
 4. **Gather environment details** — Ask targeted follow-up questions based on the use case: operating system, programming language/framework, Datadog site (default US1), whether they have an API key, container runtime, cloud provider, etc. Only ask what is needed for the selected task.
 5. **Fetch live documentation** — Use the fetching-datadog-docs skill to look up the current documentation for the selected use case. Always start from `llms.txt` to find the right page, then fetch the full `.md` content. Do not skip this step.
-6. **Execute the steps** — Walk the user through the documented steps. Run install commands, edit configuration files, and set environment variables as needed. Explain each step briefly.
-7. **Verify** — After completing the setup, run a verification step (e.g., `datadog-agent status`, check the Datadog UI, confirm traces/logs/metrics are flowing). Confirm success with the user before wrapping up.
+6. **Present a plan** — Based on the fetched documentation and the user's environment details, present a clear plan of the steps you will take. List each step concisely. Wait for the user to review and approve the plan before proceeding to execution.
+7. **Execute the steps** — After the user approves the plan, execute the commands on the user's behalf (install packages, edit config files, set environment variables). For each command, briefly explain what it does before running it. If a command requires sensitive input (API keys, passwords), ask the user to provide the value rather than guessing.
+8. **Verify** — After completing the setup, run a verification step (e.g., `datadog-agent status`, check the Datadog UI, confirm traces/logs/metrics are flowing). Confirm success with the user before wrapping up.
 
 ## Presentation Format
 

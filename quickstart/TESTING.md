@@ -21,7 +21,7 @@ claude --plugin-dir /path/to/quickstart
 
 **Then:** Type `skip` to dismiss.
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [ ] Pass / [ ] Fail / [X] Partial
 
 ---
 
@@ -33,7 +33,7 @@ claude --plugin-dir /path/to/quickstart
 - Same menu displays again
 - Clean format — one line per item, no internal action instructions shown
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [X] Pass / [ ] Fail / [ ] Partial
 
 ---
 
@@ -46,7 +46,7 @@ claude --plugin-dir /path/to/quickstart
 - Say **no** — it should proceed in docs-only mode
 - Asks follow-up questions (target OS, etc.)
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [X] Pass / [ ] Fail / [ ] Partial
 
 ---
 
@@ -59,7 +59,7 @@ claude --plugin-dir /path/to/quickstart
 - Finds and fetches the Agent install page
 - Walks you through installation steps using live docs
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [X] Pass / [ ] Fail / [ ] Partial
 
 ---
 
@@ -76,7 +76,7 @@ claude --plugin-dir /path/to/quickstart
 
 **Tip:** Use dummy values if you don't want real credentials — you're testing the flow.
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [X] Pass / [ ] Fail / [ ] Partial
 
 ---
 
@@ -96,7 +96,7 @@ claude --plugin-dir /path/to/quickstart
   - Limitations
 - Each section: 1-3 bullet points, concise
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [ ] Pass / [X] Fail / [ ] Partial
 
 ---
 
@@ -109,7 +109,7 @@ claude --plugin-dir /path/to/quickstart
 - Say **yes** — it reads `datadog-poc-notes.md` and suggests any missing info
 - Say **no** — session ends cleanly
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [ ] Pass / [X] Fail / [ ] Partial
 
 ---
 
@@ -123,7 +123,7 @@ ls -la .env.datadog          # should show -rw------- permissions
 git status                   # .env.datadog should NOT appear as untracked
 ```
 
-**Result:** [ ] Pass / [ ] Fail / [ ] Partial
+**Result:** [ ] Pass / [ ] Fail / [X] Partial
 
 ---
 
@@ -132,8 +132,11 @@ git status                   # .env.datadog should NOT appear as untracked
 Record any observations, errors, or suggestions here:
 
 ```
-
-
-
-
+- Update the plugin for it to first run in plan mode
+- Update the plugin for it to execute the commands on the user behalf instead of giving the commands to the users and asking the users to execute it. Alternatively, it can provide the user the commands to execute but ask if the user wants to agentic coding tool to execute it for the user.
+- Update the plugin to remove the sessionEnd hook but use taskCompletion hooks instead. 
+- On session start, the menu displayed but when I enter number 23 it didn't work. I feel that the menu is displayed as a menu but not a menu that can be used.  Since this is the nature of sessionStart hook should display the options available such as recommending user to type /resume or type /showing-menu or suggest users to connect to Datadog MCP such as offering a command, skill, or both to help users connect to Datadog MCP Server. 
+- On task completions, it should document concisely the steps, the problem, the working solution or potential solution, and limitations.
 ```
+
+![](ref.png)

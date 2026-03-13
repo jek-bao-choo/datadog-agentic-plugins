@@ -4,11 +4,11 @@ Interactive onboarding plugin that guides DevOps/SRE engineers through Datadog P
 
 ## Features
 
-- **Auto-start menu** — Displays 26 Datadog use cases on session start (Agent setup, APM instrumentation, RUM, logs, cloud integrations, troubleshooting)
+- **Quick welcome** — Displays a brief welcome on session start with pointers to `/quickstart:menu` and `/resume`
 - **Datadog MCP integration** — Optionally connects to Datadog MCP server for live account queries
 - **Live documentation** — Fetches current Datadog docs via `llms.txt` index
 - **Session documentation** — Documents tech stack, steps, problems, solutions, and limitations to a local markdown file
-- **Session review** — Optionally reviews PoC notes for completeness before ending
+- **Plan-then-execute** — Presents a plan before executing, waits for user approval
 
 ## Prerequisites
 
@@ -60,20 +60,19 @@ internet_access: true
 | Component | Type | Purpose |
 |-----------|------|---------|
 | `fetching-datadog-docs` | Skill | Live Datadog documentation lookup |
-| `showing-menu` | Command | Interactive use-case menu |
-| `SessionStart` hook | Hook | Auto-displays menu on session start |
-| `TaskCompleted` hook | Hook | Documents task completion to markdown |
-| `SessionEnd` hook | Hook | Reviews PoC notes for completeness |
+| `menu` | Command | Interactive use-case menu (`/quickstart:menu`) |
+| `SessionStart` hook | Hook | Brief welcome on session start |
+| `TaskCompleted` hook | Hook | Prompts task documentation before completion |
 | Datadog MCP | Dynamic | Configured on-demand when user opts in |
 
 ## Usage
 
-1. Start a new session — the menu appears automatically
-2. Pick a use case (number or description)
-3. Optionally connect to Datadog MCP server
-4. Follow guided setup with live documentation
-5. On task completion, document steps to PoC notes
-6. On session end, optionally review notes
+1. Start a new session — a brief welcome appears
+2. Type `/quickstart:menu` to see the full 26-item use case menu
+3. Pick a use case (number or description)
+4. Optionally connect to Datadog MCP server
+5. Follow guided setup with live documentation (plan shown first, then executed after approval)
+6. On task completion, optionally document steps to PoC notes
 
 ## Cross-Tool Compatibility
 
