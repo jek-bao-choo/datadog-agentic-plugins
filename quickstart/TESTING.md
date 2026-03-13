@@ -1,11 +1,11 @@
-# Testing Guide — poc-quickstart
+# Testing Guide — quickstart
 
 ## Setup
 
-Copy the `poc-quickstart/` folder to the test machine, then start Claude Code with:
+Copy the `quickstart/` folder to the test machine, then start Claude Code with:
 
 ```bash
-claude --plugin-dir /path/to/poc-quickstart
+claude --plugin-dir /path/to/quickstart
 ```
 
 ---

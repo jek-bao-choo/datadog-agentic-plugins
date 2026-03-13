@@ -44,8 +44,8 @@
       "version": "0.1.0"
     },
     {
-      "name": "poc-quickstart",
-      "source": "./poc-quickstart",
+      "name": "quickstart",
+      "source": "./quickstart",
       "description": "Interactive Datadog PoC onboarding with auto-menu, MCP integration, live docs, and session documentation",
       "version": "0.1.0"
     }

@@ -1,5 +1,5 @@
 {
-  "name": "poc-quickstart",
+  "name": "quickstart",
   "version": "0.1.0",
   "description": "Interactive onboarding plugin that guides DevOps/SRE engineers through Datadog PoC setup — from session start to documented completion. Auto-displays a menu on startup, connects to Datadog MCP server when needed, fetches live docs, and documents everything to a local markdown file.",
   "author": {
