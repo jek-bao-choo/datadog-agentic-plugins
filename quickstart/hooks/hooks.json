@@ -1,5 +1,6 @@
 {
-  "SessionStart": [
+  "hooks": {
+    "SessionStart": [
     {
       "hooks": [
         {
@@ -29,4 +30,5 @@
       ]
     }
   ]
+  }
 }
