@@ -12,17 +12,6 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Before marking this task complete, ask the user: 'Would you like me to document the steps taken for this task to a PoC notes file?' If the user agrees, write a concise entry to the PoC notes markdown file (default: ./datadog-poc-notes.md, or the path configured in .claude/quickstart.local.md). The entry should be appended with a timestamp header and include: (1) Tech stack — languages, versions, frameworks involved, (2) Steps taken — what was configured or installed, (3) Problem — what issue was being solved, if any, (4) Solution — what worked or what was recommended, (5) Limitations — any known caveats or incomplete items. Keep each section to 1-3 bullet points. If the task was not Datadog-related, skip documentation gracefully."
-          }
-        ]
-      }
-    ],
     "SessionEnd": [
       {
         "matcher": "*",

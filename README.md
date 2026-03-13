@@ -19,6 +19,8 @@ claude plugin marketplace add https://github.com/jek-bao-choo/datadog-agentic-pl
 /plugin install quickstart@datadog-agentic-plugins
 
 /reload-plugins
+
+/quickstart:showing-menu
 ```
 
 ## Project Structure
