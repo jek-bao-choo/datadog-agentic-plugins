@@ -3,6 +3,7 @@ description: >-
   Present a menu of Datadog use cases. Triggers on "get started with Datadog",
   "what can I do with Datadog", "show Datadog options", "menu", "showing-menu",
   "quickstart menu", etc.
+argument-hint: "[option number]"
 allowed-tools:
   - Bash
   - Read
