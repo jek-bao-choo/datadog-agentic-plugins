@@ -37,7 +37,7 @@
       "description": "Initialise sandbox environments for Datadog testing",
       "version": "0.1.0"
     },
-{
+    {
       "name": "quickstart",
       "source": "./quickstart",
       "description": "Interactive Datadog PoC onboarding with auto-menu, MCP integration, live docs, and session documentation",
