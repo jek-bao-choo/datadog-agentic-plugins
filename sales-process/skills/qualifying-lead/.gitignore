@@ -1,0 +1,6 @@
+# Test artifacts and eval workspace
+evals/
+qualifying-lead-workspace/
+
+# Generated output
+dist/
