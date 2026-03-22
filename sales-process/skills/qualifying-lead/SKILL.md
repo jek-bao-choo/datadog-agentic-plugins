@@ -71,22 +71,17 @@ Once approved, exit plan mode using `ExitPlanMode`, then produce the markdown fi
 
 The output must:
 - Follow the structure of `references/lead-qualification-output-template.md` **exactly** — same headings, same order, same formatting
-- **Quote directly** from the notes using `"..."` for every piece of information — attribute each quote to the person who said it and the context (e.g., "Mike Chen, VP Engineering, via Sarah's Slack message on March 15"). Never paraphrase when a direct quote is available.
+- **Quote directly** from the notes using `"..."` for every piece of information — attribute each quote to the person who said it and the context (e.g., "John Doe, VP Engineering, via Jane Doe's Slack message on March 15"). Never paraphrase when a direct quote is available.
 - **Never hallucinate, assume, or infer** anything not explicitly stated in the notes. This is critical. If a field has no information, do not fill it with reasonable-sounding guesses. Even connecting dots between two separate statements counts as inference unless the notes explicitly make that connection.
 - For fields with no information, write: *"Not mentioned — suggested discovery question: [your question]"* — the discovery question should be specific and actionable, something the sales team can ask verbatim in the next call.
 - Include mermaid diagrams for Authority/Economic Buyer org charts and Timeline/Decision Process charts **only when** enough information exists in the notes to make them meaningful. Do not invent reporting relationships or timeline dates that weren't mentioned.
 - Remove the example blocks from the template — those are guidance for you, not part of the output
 - Remove the instruction blocks from the template — those are guidance for you, not part of the output
 
-Save the file as: `dist/lead-qualification-[account-name]-[ISO8601-timestamp].md`
-- Account name: kebab-case, lowercase (e.g., `acme-corp`). If no account name was found in the notes, use `unnamed`.
-- Timestamp: format `YYYYMMDDTHHMMSS` (e.g., `20260323T143022`)
-- Save into the `dist/` folder relative to the current working directory. Create the `dist/` directory if it doesn't exist.
-
 ### Important principles
 
 - **Direct quotes over paraphrasing.** When notes say something relevant, quote the exact words and attribute them. "Mike said MTTR is over 2 hours" is better than "MTTR exceeds 2 hours." The original voice matters — it tells the reader how confident the source was, what language the prospect actually uses, and whether the information is first-hand or second-hand.
 - **Gaps are valuable — fabrication is dangerous.** A qualification document with 15 honest gaps is far more useful than one that looks complete but contains 5 plausible-sounding fabrications. Gaps tell the sales team exactly what to ask next. Fabrications lead to embarrassing conversations when the sales rep references something the prospect never said.
 - **Contradictions should surface, not hide.** If two colleagues said conflicting things (e.g., different budget numbers, different timelines), show both with direct quotes and flag the conflict explicitly. Do not pick a side or average the numbers. Let the user decide which is accurate.
-- **The template is the contract.** Don't add extra sections, don't skip sections, don't reorder. The team relies on a consistent format across all qualification documents.
+- **The template is the contract.** Don't add extra sections, don't skip sections, don't reorder. I rely on a consistent format across all qualification documents.
 - **When in doubt, it's a gap.** If you're unsure whether something was explicitly stated or you're connecting dots from separate pieces of information, treat it as a gap with a discovery question. It's always better to under-claim than over-claim.
