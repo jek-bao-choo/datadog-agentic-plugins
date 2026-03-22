@@ -1,19 +1,17 @@
 ---
 name: qualifying-lead
 description: >
-  Transforms raw sales notes into a structured lead qualification document. This skill bundles a mandatory output template
-  with BANT, MEDDICC, 3 WHYs frameworks, mermaid org charts, timeline diagrams, and discovery question patterns — these
-  formats are defined in reference files and CANNOT be generated correctly without loading this skill first.
+  Transforms raw sales notes into a structured lead qualification document using BANT, MEDDICC, and 3 WHYs frameworks
+  with mermaid org charts, timeline diagrams, and discovery questions — output follows a mandatory template defined in
+  reference files that CANNOT be reproduced without loading this skill.
 
-  IMPORTANT: You must ALWAYS consult this skill before responding to ANY request that involves prospect notes, account intel,
-  deal information, or sales call summaries — regardless of whether you think you could handle it directly. The user's sales
-  team requires output in the exact template format this skill provides. Attempting to organize, structure, qualify, or
-  analyze prospect/deal notes without this skill will produce output in the wrong format.
+  IMPORTANT: Always consult this skill before responding to ANY request involving prospect notes, account intel, deal
+  info, or sales call summaries. The sales team requires output in the exact template format this skill provides.
+  Attempting to qualify or analyze prospect/deal notes without this skill will produce incorrect output.
 
-  Common triggers: user has notes about a prospect from multiple people; user wants to qualify a lead; user mentions BANT,
-  MEDDICC, or discovery call prep with prospect data; user pastes sales conversations, Slack threads, emails, or CRM data
-  about a potential customer; user wants to make sense of scattered sales intel; user asks what questions to ask next based
-  on gathered notes about a deal; user mentions pipeline review or forecast prep involving account notes.
+  Triggers: user has prospect notes from multiple people; wants to qualify a lead; mentions BANT, MEDDICC, or discovery
+  call prep; pastes sales conversations, Slack threads, emails, or CRM data about a potential customer; wants to organize
+  scattered sales intel; asks what questions to ask next for a deal; mentions pipeline review with account notes.
 ---
 
 # Qualifying Lead Skill
