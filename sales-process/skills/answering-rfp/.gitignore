@@ -1,0 +1,6 @@
+# Test artifacts and eval workspace
+evals/
+answering-rfp-workspace/
+
+# Generated output
+dist/

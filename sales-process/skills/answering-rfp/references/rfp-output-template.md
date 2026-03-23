@@ -1,26 +1,6 @@
 # Datadog RFP/RFI Response Template
 
-> **Core Instructions — these override everything else:**
->
-> 1. **Never fabricate, always quote.** If a requirement is mentioned in the raw notes, quote the prospect's exact words using `"..."` in the Prospect's Requirement column. Attribution matters — note who said it and in what context. A plausible guess written with confidence is worse than a gap, because the sales team will act on it as if it were real.
-> 2. **Do NOT hallucinate, assume, or infer** anything that was not explicitly mentioned in the input. If the notes don't say it, you don't know it — no matter how reasonable an inference seems.
-> 3. **Web search is mandatory** for the "Datadog's Response / Remark / Comment" and "Datadog's Doc / Blog / Trust / Legal URL" columns. Responses must be grounded in actual Datadog documentation, blog posts, trust pages, or legal pages found via web search. Never fabricate URLs or capabilities.
-> 4. **Demo URLs** must always use the `https://demo.datadoghq.com/` base. Write `NA` if no relevant demo page exists. Access `https://demo.datadoghq.com/` via https://github.com/ChromeDevTools/chrome-devtools-mcp.
-> 5. **When in doubt, flag for clarification** — assign "Clarification" supportability and write a specific question. Gaps are valuable; fabrication is dangerous.
-
----
-
-## Workflow
-
-Follow these steps to transform raw sales notes into the RFP/RFI response table:
-
-1. **Receive raw notes** — Accept messy, unstructured input (meeting notes, emails, Slack threads, CRM data, requirement documents, call transcripts). The notes are often uncategorised and scattered.
-2. **Extract requirements** — Read through all notes and identify every distinct functional requirement, non-functional requirement, technical stack detail, infrastructure detail, and inquiry or question. Each becomes its own row in the output table.
-3. **Categorize** — Assign each extracted requirement to the appropriate category from the Category Taxonomy below.
-4. **Determine supportability** — Evaluate each requirement against Datadog's capabilities and assign one of the four allowed Supportability Values below.
-5. **Research and respond** — Follow the tiered search escalation in the Web Search Guidance section below: start with Datadog official docs (`datadoghq.com`), then Datadog GitHub repos (`github.com/DataDog/`), then Datadog internal knowledge base, then OpenTelemetry (`opentelemetry.io` / `github.com/open-telemetry/`) as a fallback. Write the response column based on what you find. Never fabricate information.
-6. **Find URLs** — Populate the URL column from whichever tier yielded the answer — URLs may come from `datadoghq.com`, `github.com/DataDog/`, Datadog internal KB, or `opentelemetry.io` / `github.com/open-telemetry/`. Populate Demo URLs from `demo.datadoghq.com` — use https://github.com/ChromeDevTools/chrome-devtools-mcp to discover relevant demo pages.
-7. **Output the table** — Produce the final markdown table following the exact column format defined below.
+This is the output format reference. Follow the column definitions, category taxonomy, supportability values, and example table below when generating the RFP/RFI response.
 
 ---
 
@@ -31,7 +11,7 @@ Follow these steps to transform raw sales notes into the RFP/RFI response table:
 | **Category / Section / Area / Dimension / Domain** | Groups the requirement into a logical domain | Use values from the Category Taxonomy below. If a requirement spans multiple categories, pick the primary one. |
 | **Prospect's Requirement / Inquiry / Question / Description / Framework** | The extracted requirement, quoted from the raw notes | Quote directly using `"..."` when possible. For technical stack items, include language, version, and framework. For infrastructure, include platform, version, and orchestrator details. If the notes are vague, extract what exists and flag specifics for clarification. |
 | **Datadog's Supportability** | How well Datadog supports this requirement | Allowed values: `Yes`, `Partial`, `Comply`, `Clarification`. See Supportability Values section below. |
-| **Datadog's Response / Remark / Comment** | Datadog's detailed response to the requirement | Must be sourced via the tiered search escalation (see Web Search Guidance below): Datadog docs/blog/trust/legal → Datadog GitHub → internal KB → OpenTelemetry. Explain how Datadog addresses the requirement. If the answer comes from OpenTelemetry, clearly state that native Datadog support is not available and describe the OTel-based approach. Never fabricate capabilities. |
+| **Datadog's Response / Remark / Comment** | Datadog's detailed response to the requirement | Must be sourced via the tiered search escalation defined in SKILL.md: Datadog docs/blog/trust/legal → Datadog GitHub → internal KB → OpenTelemetry. Explain how Datadog addresses the requirement. If the answer comes from OpenTelemetry, clearly state that native Datadog support is not available and describe the OTel-based approach. Never fabricate capabilities. |
 | **Datadog's Doc / Blog / Trust / Legal URL** | Supporting URL from the source that confirmed supportability | Must be a real URL found via web search. May come from `datadoghq.com` (docs, blog, trust, legal), `github.com/DataDog/`, Datadog internal KB, or `opentelemetry.io` / `github.com/open-telemetry/` depending on which tier yielded the answer. Write `NA` if no relevant URL is found. Never fabricate URLs. |
 | **Datadog's Demo URLs** | Link to relevant Datadog demo environment page | Must start with `https://demo.datadoghq.com/`. Use https://github.com/ChromeDevTools/chrome-devtools-mcp to discover relevant demo pages. Write `NA` if no relevant demo page exists. |
 
@@ -79,80 +59,6 @@ Each requirement must be assigned exactly one of these four values:
 
 ---
 
-## Extracting Technical Stack Details
-
-Raw sales notes often mention technologies in passing or in lists. Follow these rules when extracting them:
-
-- **Programming languages** — Always capture the language name AND version if mentioned. Example: ".NET 8", "Java 17", "Python 3.11". If no version is mentioned, extract as-is (e.g., "Java") and note in the response that the version was not specified.
-- **Frameworks** — Capture framework AND version. Example: "Spring Boot 3.2", "React 18", "Next.js 14", "FastAPI 0.100".
-- **Infrastructure** — Capture platform, version, and configuration details. Example: "Kubernetes 1.28 on EKS", "AWS Lambda with Node.js 20 runtime".
-- **Databases** — Capture database type and version. Example: "PostgreSQL 15", "MongoDB 7.0", "Redis 7".
-- **Rendering and execution modes** — For frontend frameworks, capture the rendering mode if mentioned or probe for it. This affects which Datadog instrumentation applies. Common modes: Server-Side Rendering (SSR), Client-Side Rendering (CSR), Static Site Generation (SSG), Incremental Static Regeneration (ISR). Example: "Next.js 14 with SSR" vs "Next.js as a static site (SSG)". If the rendering mode is not mentioned, flag it for clarification — SSR requires server-side APM tracing while CSR/SSG only needs Browser RUM.
-- **Compilation and runtime modes** — For backend and infrastructure technologies, capture compilation or runtime modes that affect observability and tracer compatibility. Examples: ".NET 8 with NativeAOT" (ahead-of-time compilation may limit dynamic instrumentation), "Java with GraalVM native-image" (affects dd-trace-java compatibility), "AWS Lambda with SnapStart" (affects cold start instrumentation), "Lambda with Provisioned Concurrency". If not mentioned, flag for clarification — these modes can significantly affect Datadog's instrumentation approach.
-- **One technology per row** — Do not combine multiple technologies into a single row. If the notes say "React, with an ongoing transition from Flutter to React Native", create separate rows for React (web), Flutter (current mobile), and React Native (target mobile).
-- **Version matters** — If the notes specify a version, include it. Datadog's support can vary by version. If no version is given, note this and mention the supported version range in the response.
-
----
-
-## Web Search Guidance
-
-The response column and URL column must be grounded in real content found via web search. Follow this tiered search escalation — move to the next tier only when the previous tier yields no relevant results:
-
-### Tier 1 — Datadog Official Docs & Content (`datadoghq.com`)
-
-Search first using queries like: `site:datadoghq.com [technology or topic]`
-
-URL priority within this tier:
-1. `docs.datadoghq.com` — technical documentation (highest priority)
-2. `www.datadoghq.com/blog/` — blog posts with deeper explanations
-3. `trust.datadoghq.com` — security and compliance questions
-4. `www.datadoghq.com/legal/` — legal, DPA, and policy questions
-
-### Tier 2 — Datadog GitHub Repositories (`github.com/DataDog/`)
-
-If Tier 1 does not confirm supportability, search Datadog's GitHub repositories for technical capabilities, supported versions, framework compatibility, and compilation mode support (e.g., NativeAOT, GraalVM). Key repositories:
-- `github.com/DataDog/datadog-agent` — infrastructure monitoring (Agent capabilities, supported integrations)
-- `github.com/DataDog/dd-trace-{language}` — APM tracing libraries (dd-trace-java, dd-trace-py, dd-trace-dotnet, dd-trace-rb, dd-trace-go, dd-trace-js)
-- `github.com/DataDog/browser-sdk` — Browser RUM and Logs SDK
-- `github.com/DataDog/dd-sdk-ios` and `github.com/DataDog/dd-sdk-android` — mobile RUM SDKs
-- `github.com/DataDog/dd-sdk-reactnative` — React Native SDK
-- For other capabilities, search `github.com/DataDog/` + technology keyword
-
-### Tier 3 — Datadog Internal Knowledge Base
-
-If Tier 1 and Tier 2 are exhausted, consult Datadog's internal knowledge base or resources for additional supportability information.
-
-### Tier 4 — OpenTelemetry (`opentelemetry.io` and `github.com/open-telemetry/`)
-
-If Tiers 1–3 yield no native Datadog support, search OpenTelemetry as a fallback. Datadog supports OTLP ingestion, so OpenTelemetry instrumentation can bridge the gap for technologies without native Datadog libraries. Search:
-- `opentelemetry.io` — official OpenTelemetry documentation
-- `github.com/open-telemetry/opentelemetry.io` — OpenTelemetry documentation source
-- `github.com/open-telemetry/` + language or technology keyword — for specific OTel SDKs and instrumentation libraries
-
-When using OpenTelemetry as the answer, set supportability to "Partial" and clearly state in the response that native Datadog instrumentation is not available but the technology can be monitored via OpenTelemetry with Datadog's OTLP ingestion.
-
-### Terminate Search
-
-If even OpenTelemetry does not support the technology, stop searching. Set supportability to "Clarification" and note in the response column that neither native Datadog nor OpenTelemetry instrumentation was found, and recommend discussing with Datadog's sales engineering team.
-
-### General Rules
-
-- The response column content should be based on what you find in these sources. Quote or closely paraphrase the documentation.
-- **Never fabricate or guess URLs.** A broken link is worse than `NA`.
-- If no relevant URL is found at any tier, write `NA` for the URL column.
-
----
-
-## Handling Ambiguous or Incomplete Requirements
-
-- **Vague requirements** (e.g., "need good monitoring") — Still create a row. Set supportability to "Clarification" and write a specific question in the response column (e.g., "What specific systems or services need monitoring? What metrics matter most?").
-- **Contradictory requirements** (e.g., "must be fully on-premise" and later "cloud-first approach") — Create rows for both, flag the contradiction in the response column, and set both to "Clarification".
-- **Missing technical details** (e.g., "need Kubernetes support" without version or provider) — Extract what exists, set supportability based on what is known (likely "Yes" for general K8s support), and note in the response that specific version/provider details should be confirmed.
-- **Out-of-scope requirements** (e.g., "need a new CRM system") — Still capture with "Clarification" supportability and a response noting this appears outside Datadog's scope but should be discussed for context.
-- **Duplicate or overlapping requirements** from different sources — Create one row, quote both sources with attribution, and reconcile if consistent or flag if contradictory.
-
----
-
 ## Example Output Table
 
 > **The rows below demonstrate the expected output format and level of detail.
@@ -180,6 +86,6 @@ If even OpenTelemetry does not support the technology, stop searching. Set suppo
 > - Do NOT hallucinate, assume, or infer anything that was not explicitly mentioned
 > - If a requirement is not covered in the input, do not guess — flag it for clarification with the customer or prospect
 > - Each distinct requirement, technology, or question gets its own row
-> - All responses must be grounded in web search results from `datadoghq.com` — never fabricate capabilities or URLs
+> - All responses must be grounded in web search results — never fabricate capabilities or URLs
 > - When in doubt about supportability, use "Clarification" rather than guessing "Yes" or "Partial"
 > - Gaps and "Clarification" entries are valuable — they tell the sales team exactly what to discuss next
