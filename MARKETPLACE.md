@@ -1,6 +1,6 @@
 # MARKETPLACE.md — Contributor Conventions & Specifications
 
-This document is the authoritative reference for anyone authoring or maintaining plugins and skills in the `datadog-agentic-plugins` repository. It defines the exact schemas for PLUGIN.md and SKILL.md, the rules for every folder and file type, and the step-by-step process for contributing new content.
+This document is the authoritative reference for anyone authoring or maintaining plugins and skills in the `datadog-agentic-plugins` repository. It defines the exact schemas for `plugin.json`, `marketplace.json`, `PLUGIN.md`, `SKILL.md`, commands, hooks, and all other file types, plus the step-by-step process for contributing new content.
 
 The [README.md](./README.md) explains what this repository is, who it's for, and why it's structured this way. This document explains **how** to build within it.
 
@@ -9,11 +9,15 @@ The [README.md](./README.md) explains what this repository is, who it's for, and
 ## Table of Contents
 
 - [Repository Layout](#repository-layout)
+- [Marketplace Registry Specification](#marketplace-registry-specification)
+- [plugin.json Specification](#pluginjson-specification)
 - [PLUGIN.md Specification](#pluginmd-specification)
   - [Frontmatter Schema](#plugin-frontmatter-schema)
   - [Body Structure](#plugin-body-structure)
   - [Complete PLUGIN.md Template](#complete-pluginmd-template)
   - [PLUGIN.md Examples](#pluginmd-examples)
+- [Command Specification](#command-specification)
+- [Hook Specification](#hook-specification)
 - [SKILL.md Specification](#skillmd-specification)
   - [Frontmatter Schema](#skill-frontmatter-schema)
   - [Body Structure](#skill-body-structure)
@@ -47,29 +51,111 @@ The [README.md](./README.md) explains what this repository is, who it's for, and
 
 ```
 datadog-agentic-plugins/
-  README.md                      # Public-facing overview (do not put conventions here)
-  MARKETPLACE.md                 # This file — conventions and specifications
-  {plugin-name}/                 # One directory per plugin at the repo root
-    PLUGIN.md                    # Plugin declaration — required
-    skills/                      # All skills live under this directory
-      {skill-name}/              # One directory per skill
-        SKILL.md                 # Skill entry point — required
-        references/              # Version-variant instruction docs — optional
+  .claude-plugin/
+    marketplace.json               # Marketplace registry — required
+  README.md                        # Public-facing overview (do not put conventions here)
+  MARKETPLACE.md                   # This file — conventions and specifications
+  {plugin-name}/                   # One directory per plugin at the repo root
+    .claude-plugin/
+      plugin.json                  # Claude Code plugin manifest — required
+    PLUGIN.md                      # Plugin overview (category, deps, versions) — required
+    skills/                        # All skills live under this directory
+      {skill-name}/                # One directory per skill
+        SKILL.md                   # Skill entry point — required
+        references/                # Version-variant instruction docs — optional
           {variant-name}.md
-        scripts/                 # Executable automation — optional
+        scripts/                   # Executable automation — optional
           {script-name}.sh
-        assets/                  # Deployable files for the prospect — optional
+        assets/                    # Deployable files for the prospect — optional
           {asset-dir}/
             ...
+    commands/                      # Slash commands — optional
+      {command-name}.md
+    hooks/                         # Event-driven automation — optional
+      hooks.json
+      {hook-script}.sh
+    agents/                        # Subagent definitions — optional
+      {agent-name}.md
+    .mcp.json                      # MCP server integrations — optional
 ```
 
 Every plugin sits at the repository root. There are no grouping subdirectories for categories — the naming convention itself makes the category clear.
 
 ---
 
+## Marketplace Registry Specification
+
+The root `.claude-plugin/marketplace.json` registers all available plugins in this marketplace. Claude Code reads this file to discover which plugins can be installed.
+
+```json
+{
+  "name": "datadog-agentic-plugins",
+  "owner": {
+    "name": "Maintainer Name"
+  },
+  "metadata": {
+    "description": "Description of the marketplace"
+  },
+  "plugins": [
+    {
+      "name": "{plugin-name}",
+      "source": "./{plugin-name}",
+      "description": "Brief description",
+      "version": "0.1.0"
+    }
+  ]
+}
+```
+
+**Field rules:**
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `name` | Yes | string | Marketplace identifier |
+| `owner.name` | Yes | string | Marketplace maintainer |
+| `metadata.description` | Yes | string | Brief description of the marketplace |
+| `plugins[].name` | Yes | string | Must match the plugin's directory name exactly |
+| `plugins[].source` | Yes | string | Relative path to the plugin directory (`./{plugin-name}`) |
+| `plugins[].description` | Yes | string | Brief description of the plugin |
+| `plugins[].version` | Yes | string | Semver version string |
+
+**Every new plugin must be added to this file.** A plugin directory that exists but is not registered in `marketplace.json` will not be discoverable by Claude Code.
+
+---
+
+## plugin.json Specification
+
+Every plugin must have a `.claude-plugin/plugin.json` at its root. This is the Claude Code manifest — **required for Claude Code to discover and load the plugin**.
+
+```json
+{
+  "name": "{plugin-name}",
+  "version": "0.1.0",
+  "description": "What this plugin does — written for the prospect, not the contributor",
+  "author": {
+    "name": "Author Name"
+  }
+}
+```
+
+**Field rules:**
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `name` | Yes | string | Must exactly match the plugin's directory name. Use kebab-case. |
+| `version` | Yes | string | Semver version string (e.g., `0.1.0`, `1.0.0`) |
+| `description` | Yes | string | 1–3 sentences. Should answer "what does this plugin help me do?" |
+| `author.name` | No | string | Name of the plugin author or team |
+
+> **Important:** `plugin.json` is what Claude Code uses for plugin discovery and loading. `PLUGIN.md` (described next) is a supplementary convention specific to this marketplace that provides category, dependency, and version matrix information. Both files are required for plugins in this repository.
+
+---
+
 ## PLUGIN.md Specification
 
-Every plugin must have a PLUGIN.md at its root. This is the file Claude reads first when a prospect selects the plugin. It declares what the plugin is, what it depends on, and what skills it contains.
+Every plugin must have a PLUGIN.md at its root alongside its `.claude-plugin/plugin.json`. While `plugin.json` is the Claude Code manifest for discovery and loading, PLUGIN.md is a **marketplace convention** that provides richer metadata: category, dependencies, version support, and a structured overview that Claude reads when guiding a prospect.
+
+> **Convention note:** The `category`, `requires`, and `supported_versions` fields in PLUGIN.md are **conventions that Claude interprets as structured instructions** — they are not programmatically enforced by Claude Code. The `requires` field is advisory: Claude reads it and can warn the user if a dependency is missing, but the plugin system does not enforce dependencies at installation time.
 
 ### Plugin Frontmatter Schema
 
@@ -244,9 +330,95 @@ supported_versions:
 
 ---
 
+## Command Specification
+
+Commands are optional. They live as markdown files in the `commands/` directory and provide slash commands users invoke as `/{plugin-name}:{command-name}`.
+
+### Command Frontmatter
+
+```yaml
+---
+description: >-
+  When to trigger this command. Include specific trigger phrases
+  so Claude can match user intent.
+argument-hint: "[optional argument description]"
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - WebFetch
+  - WebSearch
+  - Glob
+  - Grep
+---
+```
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `description` | Yes | string | Trigger description — include phrases users might say |
+| `argument-hint` | No | string | Describes optional arguments the user can pass |
+| `allowed-tools` | No | list | Tools the command is allowed to use |
+
+### Command Body
+
+After the frontmatter, the body contains the full instructions Claude follows when the command is invoked. The body should be self-contained — Claude reads it as a complete prompt. See `quickstart/commands/menu.md` for a working example.
+
+---
+
+## Hook Specification
+
+Hooks are optional. They provide event-driven automation and are defined in `hooks/hooks.json`.
+
+### hooks.json Schema
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `hooks` | Yes | object | Top-level container |
+| `{EventType}` | Yes | string | Event to hook into (e.g., `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`) |
+| `matcher` | Yes | string | Pattern to match — `*` matches all |
+| `hooks[].type` | Yes | string | Hook type — typically `command` |
+| `hooks[].command` | Yes | string | Shell command to execute. Use `${CLAUDE_PLUGIN_ROOT}` for portable paths. |
+| `hooks[].timeout` | No | number | Timeout in seconds |
+
+### Hook Script Guidelines
+
+1. Scripts must output valid JSON to communicate with Claude
+2. Use `${CLAUDE_PLUGIN_ROOT}` to reference files relative to the plugin root — never hardcode paths
+3. Keep scripts fast — they run synchronously and block the session
+4. For `SessionStart` hooks, output a `systemMessage`:
+   ```json
+   {"systemMessage": "Your welcome message here"}
+   ```
+
+See `quickstart/hooks/` for a working example.
+
+---
+
 ## SKILL.md Specification
 
 Every skill must have a SKILL.md in its directory. This is the entry point Claude reads when the skill is triggered.
+
+> **Convention note:** The `version_matrix`, `routing`, and `match` fields below are **conventions that Claude interprets as structured instructions** — they are not programmatically enforced by Claude Code. When Claude reads a routing table, it understands it as "if the prospect has version X, read reference file Y" and follows the logic. This convention allows a single SKILL.md to cover many version combinations while keeping the instructions version-aware.
 
 ### Skill Frontmatter Schema
 
@@ -770,13 +942,24 @@ If an axis supports `latest`, the reference file must explain how to resolve `la
 4. **Create the directory structure:**
    ```
    {plugin-name}/
-     PLUGIN.md
+     .claude-plugin/
+       plugin.json          # Required by Claude Code
+     PLUGIN.md              # Marketplace convention
      skills/
    ```
-5. **Write PLUGIN.md** following the [PLUGIN.md template](#complete-pluginmd-template)
-6. **Add at least one skill** following the [New Skill](#step-by-step-new-skill) workflow
-7. **Test the full flow** — compose with a compatible infra plugin if applicable, run all skills in order, verify telemetry in Datadog
-8. **Submit a pull request** using the [PR checklist](#pull-request-checklist)
+5. **Write `plugin.json`** — the Claude Code manifest:
+   ```json
+   {
+     "name": "{plugin-name}",
+     "version": "0.1.0",
+     "description": "What this plugin does"
+   }
+   ```
+6. **Write PLUGIN.md** following the [PLUGIN.md template](#complete-pluginmd-template)
+7. **Register in `marketplace.json`** — add an entry to `.claude-plugin/marketplace.json` at the repo root
+8. **Add at least one skill** following the [New Skill](#step-by-step-new-skill) workflow
+9. **Test the full flow** — compose with a compatible infra plugin if applicable, run all skills in order, verify telemetry in Datadog
+10. **Submit a pull request** using the [PR checklist](#pull-request-checklist)
 
 ### Step-by-Step: New Skill
 
@@ -810,6 +993,9 @@ When a new version is released (e.g., Java 22, Spring Boot 3.4):
 
 Before submitting, verify:
 
+- [ ] `.claude-plugin/plugin.json` exists with all required fields (name, version, description)
+- [ ] `plugin.json` `name` matches the directory name exactly
+- [ ] Plugin is registered in `.claude-plugin/marketplace.json` at the repo root
 - [ ] Plugin/skill name follows naming conventions
 - [ ] PLUGIN.md frontmatter has all required fields
 - [ ] SKILL.md frontmatter has all required fields
@@ -840,6 +1026,10 @@ Before submitting, verify:
 ---
 
 ## Common Mistakes to Avoid
+
+**Missing `.claude-plugin/plugin.json`.** Every plugin must have this file — it is the Claude Code manifest. Without it, Claude Code cannot discover or load the plugin. `PLUGIN.md` alone is not sufficient.
+
+**Forgetting to register in `marketplace.json`.** A plugin directory that exists but is not registered in `.claude-plugin/marketplace.json` at the repo root will not be discoverable by users installing from the marketplace.
 
 **Creating a reference file per minor version.** If Flask 3.0 and 3.1 use the exact same instrumentation steps, they share a reference file (`flask3x.md`) with the minor version as a substitution variable.
 

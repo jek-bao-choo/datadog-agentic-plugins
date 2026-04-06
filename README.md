@@ -64,24 +64,37 @@ claude plugin marketplace add https://github.com/jek-bao-choo/datadog-agentic-pl
 
 ## Architecture Overview
 
-The repository is organized around a two-level hierarchy: **plugins** contain **skills**.
+The repository is a Claude Code **marketplace** registered via `.claude-plugin/marketplace.json` at the repo root. Each plugin is a directory with its own `.claude-plugin/plugin.json` manifest (required by Claude Code) and a `PLUGIN.md` overview (a convention for this marketplace).
 
 ```
-plugin/
-  PLUGIN.md              # What this plugin is, what it requires, what skills it offers
-  skills/
-    skill-name/
-      SKILL.md           # Entry point — version matrix, routing logic, core instructions
-      references/        # Version-variant instruction docs Claude reads into context
-      scripts/           # Validation and setup automation Claude executes
-      assets/            # Deployable sample apps, schemas, config files the prospect runs
+datadog-agentic-plugins/
+  .claude-plugin/
+    marketplace.json       # Marketplace registry — lists all available plugins
+  {plugin-name}/
+    .claude-plugin/
+      plugin.json          # Required — Claude Code plugin manifest (JSON)
+    PLUGIN.md              # Convention — plugin overview, category, dependencies, versions
+    skills/                # Required — at least one skill
+      skill-name/
+        SKILL.md           # Entry point — version matrix, routing logic, core instructions
+        references/        # Version-variant instruction docs Claude reads into context
+        scripts/           # Validation and setup automation Claude executes
+        assets/            # Deployable sample apps, schemas, config files the prospect runs
+    commands/              # Optional — slash commands (.md files)
+    hooks/                 # Optional — event-driven automation (hooks.json)
+    agents/                # Optional — subagent definitions (.md files)
+    .mcp.json              # Optional — MCP server integrations
 ```
 
-A **plugin** represents a technology domain. It groups related skills and declares dependencies on other plugins.
+A **plugin** represents a technology domain. It groups related skills and declares dependencies on other plugins. The `.claude-plugin/plugin.json` manifest is required for Claude Code to discover and load the plugin. The `PLUGIN.md` file is a supplementary convention specific to this marketplace — it provides category, dependency, and version information that Claude reads and interprets.
 
 A **skill** is the atomic unit of work. It is a single, focused procedure — install the Datadog Agent, instrument a Flask app, enable DBM on PostgreSQL. Each skill is version-aware: it declares which version combinations it supports and routes to the correct instructions for the prospect's specific setup.
 
-For the full conventions governing PLUGIN.md, SKILL.md, and all folder contents, see [MARKETPLACE.md](./MARKETPLACE.md).
+> **Convention note:** Fields like `version_matrix`, `routing`, and `requires` in SKILL.md and PLUGIN.md are **conventions that Claude interprets as structured instructions** — they are not programmatically enforced by Claude Code. Claude reads them and follows the logic (e.g., routing to the correct reference file based on versions), but the plugin system itself does not parse or validate these fields.
+
+Plugins can also include **commands** (slash commands users invoke), **hooks** (event-driven automation like session-start messages), **agents** (autonomous subagent definitions), and **MCP servers** (external service integrations). See the [quickstart plugin](./quickstart/) for a working example that uses commands and hooks.
+
+For the full conventions governing plugin.json, PLUGIN.md, SKILL.md, and all folder contents, see [MARKETPLACE.md](./MARKETPLACE.md).
 
 ---
 
@@ -163,14 +176,37 @@ Same hosting model as databases, applied to message queue and streaming systems.
 
 ```
 datadog-agentic-plugins/
+  .claude-plugin/
+    marketplace.json               # Marketplace registry
   README.md
   MARKETPLACE.md
+
+  # ──────────────────────────────────────────────
+  # Quickstart (interactive onboarding)
+  # ──────────────────────────────────────────────
+
+  quickstart/
+    .claude-plugin/
+      plugin.json
+    PLUGIN.md
+    commands/
+      menu.md                      # /quickstart:menu — 26-option use case menu
+    hooks/
+      hooks.json                   # SessionStart hook
+      session-start.sh
+    skills/
+      fetching-datadog-docs/
+        SKILL.md
 
   # ──────────────────────────────────────────────
   # Infrastructure
   # ──────────────────────────────────────────────
 
   aws-ec2/
+    .claude-plugin/
+      plugin.json
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-ec2/
@@ -184,6 +220,8 @@ datadog-agentic-plugins/
           validate-agent.sh
 
   aws-eks/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-eks-cluster/
@@ -207,6 +245,8 @@ datadog-agentic-plugins/
           validate-helm.sh
 
   aws-lambda/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-lambda/
@@ -221,6 +261,8 @@ datadog-agentic-plugins/
           validate-lambda-extension.sh
 
   gcp-gke/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-gke-cluster/
@@ -244,6 +286,8 @@ datadog-agentic-plugins/
           validate-helm.sh
 
   kubernetes-onprem/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-vanilla-k8s/
@@ -267,6 +311,8 @@ datadog-agentic-plugins/
           validate-helm.sh
 
   openshift-onprem/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-openshift/
@@ -283,6 +329,8 @@ datadog-agentic-plugins/
           validate-operator.sh
 
   rhel-onprem/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-rhel/
@@ -303,6 +351,8 @@ datadog-agentic-plugins/
   # ──────────────────────────────────────────────
 
   java-instrumentation/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       springboot-dd-tracer/
@@ -379,6 +429,8 @@ datadog-agentic-plugins/
             otel-config.yml
 
   python-instrumentation/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       flask-dd-tracer/
@@ -441,6 +493,8 @@ datadog-agentic-plugins/
             ddtrace-config.py
 
   nodejs-instrumentation/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       express-dd-tracer/
@@ -484,6 +538,8 @@ datadog-agentic-plugins/
   # ──────────────────────────────────────────────
 
   aws-rds-postgres/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-rds-postgres/
@@ -506,6 +562,8 @@ datadog-agentic-plugins/
             sample-schema.sql
 
   aws-rds-mysql/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-rds-mysql/
@@ -531,6 +589,8 @@ datadog-agentic-plugins/
   # ──────────────────────────────────────────────
 
   postgres-selfhosted/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-postgres/
@@ -553,6 +613,8 @@ datadog-agentic-plugins/
             sample-schema.sql
 
   mysql-selfhosted/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-mysql/
@@ -574,6 +636,8 @@ datadog-agentic-plugins/
             sample-schema.sql
 
   oracle-selfhosted/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-oracle/
@@ -602,6 +666,8 @@ datadog-agentic-plugins/
   # ──────────────────────────────────────────────
 
   postgres-k8s/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-postgres-k8s/
@@ -620,6 +686,8 @@ datadog-agentic-plugins/
             sample-schema.sql
 
   mysql-k8s/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-mysql-k8s/
@@ -642,6 +710,8 @@ datadog-agentic-plugins/
   # ──────────────────────────────────────────────
 
   aws-sqs/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-sqs/
@@ -652,6 +722,8 @@ datadog-agentic-plugins/
           validate-sqs-integration.sh
 
   aws-msk/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-msk/
@@ -678,6 +750,8 @@ datadog-agentic-plugins/
   # ──────────────────────────────────────────────
 
   kafka-selfhosted/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-kafka/
@@ -701,6 +775,8 @@ datadog-agentic-plugins/
             docker-compose.yml
 
   rabbitmq-selfhosted/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-rabbitmq/
@@ -727,6 +803,8 @@ datadog-agentic-plugins/
   # ──────────────────────────────────────────────
 
   kafka-k8s/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-kafka-k8s/
@@ -746,6 +824,8 @@ datadog-agentic-plugins/
             docker-compose.yml
 
   rabbitmq-k8s/
+    .claude-plugin/
+      plugin.json
     PLUGIN.md
     skills/
       setup-rabbitmq-k8s/
@@ -1002,19 +1082,32 @@ This repository is maintained by Datadog Solutions Engineers. Every contribution
 
 ```
 {plugin-name}/
-  PLUGIN.md
+  .claude-plugin/
+    plugin.json          # Required by Claude Code
+  PLUGIN.md              # Marketplace convention
   skills/
 ```
 
-4. **Write PLUGIN.md** with the following sections:
+4. **Write `plugin.json`** — the Claude Code manifest:
+   ```json
+   {
+     "name": "{plugin-name}",
+     "version": "0.1.0",
+     "description": "What this plugin does"
+   }
+   ```
+
+5. **Write PLUGIN.md** with the following sections:
    - **Frontmatter**: name, description, category
    - **requires**: list of compatible infrastructure plugins (empty for infra and managed plugins)
    - **Skills overview**: brief description of each skill the plugin offers
    - **Supported versions**: summary of the version ranges covered
 
-5. **Add at least one skill** before submitting. A plugin with no skills is not useful.
+6. **Register in `marketplace.json`** — add an entry to `.claude-plugin/marketplace.json` at the repo root.
 
-6. **Test the plugin end to end.** Compose it with at least one compatible infrastructure plugin and verify the full flow works.
+7. **Add at least one skill** before submitting. A plugin with no skills is not useful.
+
+8. **Test the plugin end to end.** Compose it with at least one compatible infrastructure plugin and verify the full flow works.
 
 ### Adding a New Skill to an Existing Plugin
 
