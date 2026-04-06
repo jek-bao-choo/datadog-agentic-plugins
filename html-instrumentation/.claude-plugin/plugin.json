@@ -1,0 +1,1 @@
+{"name": "html-instrumentation", "description": "Instrument static HTML applications with Datadog RUM via auto-injection on Nginx.", "version": "0.1.0"}

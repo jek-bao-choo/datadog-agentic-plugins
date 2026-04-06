@@ -104,9 +104,33 @@
       "version": "0.1.0"
     },
     {
-      "name": "frontend-rum",
-      "source": "./frontend-rum",
-      "description": "Set up Datadog Real User Monitoring for frontend applications (React, Vue, Next.js, Vanilla JS)",
+      "name": "react-instrumentation",
+      "source": "./react-instrumentation",
+      "description": "Instrument React applications with Datadog RUM and Feature Flags",
+      "version": "0.1.0"
+    },
+    {
+      "name": "vue-instrumentation",
+      "source": "./vue-instrumentation",
+      "description": "Instrument Vue.js applications with Datadog RUM",
+      "version": "0.1.0"
+    },
+    {
+      "name": "nextjs-instrumentation",
+      "source": "./nextjs-instrumentation",
+      "description": "Instrument Next.js applications with Datadog RUM",
+      "version": "0.1.0"
+    },
+    {
+      "name": "vanillajs-instrumentation",
+      "source": "./vanillajs-instrumentation",
+      "description": "Instrument Vanilla JavaScript applications with Datadog RUM",
+      "version": "0.1.0"
+    },
+    {
+      "name": "html-instrumentation",
+      "source": "./html-instrumentation",
+      "description": "Instrument static HTML applications with Datadog RUM via Nginx auto-injection",
       "version": "0.1.0"
     },
     {

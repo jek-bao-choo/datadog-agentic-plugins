@@ -1,5 +1,0 @@
-{
-  "name": "frontend-rum",
-  "description": "Set up Datadog Real User Monitoring (RUM) for frontend applications. Covers React, Vue, Next.js, Vanilla JS, and HTML applications.",
-  "version": "0.1.0"
-}
