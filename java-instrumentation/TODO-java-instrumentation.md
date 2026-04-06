@@ -26,7 +26,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 ## Phase 2: Datadog Instrumentation
 
-**Goal:** For each setup skill, create a matching `{framework}-dd-tracer` skill that instruments the running application with Datadog APM — producing traces, metrics, and correlated logs.
+**Goal:** For each setup, create a matching `{framework}-dd-tracer` skill that instruments the running application with Datadog APM — producing traces, metrics, and correlated logs.
 
 **What an instrumentation produces:**
 
@@ -42,7 +42,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 **Naming convention:** `{framework}{major-version}-dd-tracer` (e.g., `springboot2x-dd-tracer`, `springboot4x-dd-tracer`). Omit the version suffix for the primary/default version.
 
-**Prerequisite:** The corresponding `setup-{framework}` skill must be completed first. State this explicitly in the SKILL.md prerequisites section.
+**Prerequisite:** The corresponding `setup-{framework}` skill (as well as the application) must be completed first. State this explicitly in the SKILL.md prerequisites section.
 
 **Reminder:** Always check if dd-tracer is already running in the environment before instrumenting. If the `skills/` folder already has a relevant dd-tracer skill, use it instead of creating a new one.
 

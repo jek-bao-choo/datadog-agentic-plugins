@@ -9,7 +9,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 ## Phase 1: Application Setup
 
-**Goal:** For each .NET framework and version combination, create a `setup-{framework}` skill that builds and runs the application — independent of any Datadog instrumentation.
+**Goal:** Based on the PoC requirement .NET, .NET Core, or .NET framework and version combination, create a `setup-{variant}{dotnet-version}` skill that builds and runs the application — independent of any Datadog instrumentation.
 
 **What the application produces:**
 
@@ -18,7 +18,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Include at least one outbound call to a downstream dependency appropriate to the PoC — such as a relational database (via Entity Framework Core or Dapper), message queue, another application service (via `HttpClient`), or external API — using the protocol the PoC requires (HTTP REST, gRPC, message publishing, or other). If the downstream dependency or protocol is not explicitly stated in the PoC requirements, ask before assuming.
 - Structured logging via `Microsoft.Extensions.Logging` with a Serilog JSON sink (console and file outputs) so logs are ready for Datadog log collection
 
-**Naming convention:** `setup-{framework}{dotnet-version}` (e.g., `setup-aspnetcore8`, `setup-aspnetcore6`). Omit the version suffix for the primary/default version.
+**Naming convention:** `setup-{dotnet-variant}{dotnet-version}` (e.g., `setup-aspnetcore8`, `setup-aspnetcore6`). Omit the version suffix for the primary/default version.
 
 **Reminder:** Always check if a .NET application is already running in the environment before creating a new one. If the `skills/` folder already has a relevant setup skill, use it instead of creating a new one.
 
@@ -41,7 +41,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 **Naming convention:** `{framework}{dotnet-version}-dd-tracer` (e.g., `aspnetcore8-dd-tracer`, `aspnetcore6-dd-tracer`). Omit the version suffix for the primary/default version.
 
-**Prerequisite:** The corresponding `setup-{framework}` skill must be completed first. State this explicitly in the SKILL.md prerequisites section.
+**Prerequisite:** The corresponding `setup-{framework}` skill (as well as the application) must be completed first. State this explicitly in the SKILL.md prerequisites section.
 
 **Reminder:** Always check if dd-tracer is already running in the environment before instrumenting. If the `skills/` folder already has a relevant dd-tracer skill, use it instead of creating a new one.
 
