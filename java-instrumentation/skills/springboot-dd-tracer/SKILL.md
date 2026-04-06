@@ -18,42 +18,14 @@ Instrument a Spring Boot 3.5.9 REST API with Datadog APM on Kubernetes using man
 
 ## Prerequisites
 
-- A Kubernetes cluster with the Datadog Agent deployed (see aws-integration or gcp-integration plugins)
-- Java 17 or Docker for building the application
+- Skill `setup-springboot` has been completed successfully (app built and deployed to Kubernetes)
+- A Kubernetes cluster with the Datadog Agent deployed (see aws-ec2 or gcp-gke plugins)
 - `kubectl` configured to access the cluster
 - Datadog API key configured in the cluster
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. Key phases:
-
-### 1. Build the application
-
-```bash
-# Option A: Maven
-./mvnw clean package
-
-# Option B: Docker (multi-stage build)
-docker build -t springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT .
-```
-
-The application provides three REST API endpoints:
-- **GET /api/data** — Returns JSON data (logs to console)
-- **POST /api/submit** — Accepts JSON payload (logs to syslog)
-- **PUT /api/update** — Returns status code only (logs to file)
-
-### 2. Deploy to Kubernetes
-
-```bash
-# Build for linux/amd64 and push (if on Apple Silicon)
-docker buildx build --platform linux/amd64 -t <REGISTRY>/springboot3dot5dot9-sandbox:0.0.1-SNAPSHOT --push .
-
-# Deploy
-kubectl apply -f k8s/
-kubectl rollout status deployment/springboot3dot5dot9-sandbox
-```
-
-### 3. Datadog APM via init container injection
+### 1. Datadog APM via init container injection
 
 The `k8s/deployment.yaml` already includes the Datadog tracer setup:
 
@@ -63,7 +35,7 @@ The `k8s/deployment.yaml` already includes the Datadog tracer setup:
 
 This approach is preferred over the Datadog admission controller webhook, which excludes its own namespace from auto-injection.
 
-### 4. Generate traffic
+### 2. Generate traffic
 
 ```bash
 kubectl port-forward svc/springboot3dot5dot9-sandbox 8080:80 &

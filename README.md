@@ -355,6 +355,8 @@ datadog-agentic-plugins/
       plugin.json
     PLUGIN.md
     skills/
+      setup-springboot/
+        SKILL.md
       springboot-dd-tracer/
         SKILL.md
         references/
