@@ -1,172 +1,87 @@
 # TODO — java-instrumentation
 
-> Combined from datadog-proof/java/ CLAUDE.md and TODO files.
+## How to use this file
+
+This file is a prompt for Claude. It describes what to build when working within the `java-instrumentation` plugin. Work proceeds in two phases: first set up the application, then instrument it with Datadog. Each phase produces skills following the conventions in `MARKETPLACE.md`.
+
+Before starting either phase, check if a matching skill already exists under `skills/`. If it does, use it. If it doesn't, create one using `/skill-creator` and place the application source, configs, and manifests in the skill's `references/`, `scripts/`, and `assets/` directories.
 
 ---
 
-## CLAUDE.md
+## Phase 1: Application Setup
 
-# Java App Development
+**Goal:** For each Java framework and version combination, create a `setup-{framework}` skill that builds and runs the application — independent of any Datadog instrumentation.
 
-## About
-Multiple Java applications
+**What a setup skill produces:**
 
-## Structure
-- Shallow directories, avoid deep nesting
-- Naming: `<framework><framework_version>__<server><server_version>__<java><java_version>`
-- Example: `springboot2dot7dot5__tomcat9dot0__openjdk8u422`, `springboot3dot1__jboss7dot4__corretto17u16`
+- A working REST API with multiple endpoints (GET, POST, PUT at minimum) that exercise different code paths
+- Structured logging via SLF4J + Logback (console, syslog, and file appenders) so logs are ready for Datadog log collection
+- Random HTTP status code distribution (30% 2XX, 40% 4XX, 30% 5XX) to generate realistic error rates
+- Multiple deployment options: local Maven, executable JAR, Docker (multi-stage build), and Kubernetes manifests with health probes
+- A README.md at the skill level documenting: build instructions, run instructions, curl test commands, and project structure
+- Playwright Java tests where viable for endpoint verification
 
-## Tooling
-- Use SDKMAN! CLI for Gradle, Maven, and Java version control and installation
+**Naming convention:** `setup-{framework}{major-version}` (e.g., `setup-springboot2x`, `setup-springboot4x`). Omit the version suffix for the primary/default version.
 
-## Workflow
-1. **Research**: Create `2-RESEARCH.md` implementation plan
-2. **Review**: Wait for user approval
-3. **Plan**: Create detailed `3-PLAN.md` with atomic steps
-4. **Implement**: Execute step-by-step, mark "(COMPLETED)"
+**Reminder:** Always check if a Java application is already running in the environment before creating a new one. If the `skills/` folder already has a relevant setup skill, use it instead of creating a new one.
+
+---
+
+## Phase 2: Datadog Instrumentation
+
+**Goal:** For each setup skill, create a matching `{framework}-dd-tracer` skill that instruments the running application with Datadog APM — producing traces, metrics, and correlated logs.
+
+**What an instrumentation skill produces:**
+
+- Datadog Java tracer (`dd-java-agent.jar`) attached via `-javaagent` JVM argument or Kubernetes init container injection
+- Unified service tags configured: `DD_SERVICE`, `DD_ENV`, `DD_VERSION`
+- Trace-log correlation enabled via `DD_LOGS_INJECTION=true`
+- Runtime metrics collection enabled via `DD_RUNTIME_METRICS_ENABLED=true`
+- Profiling enabled via `DD_PROFILING_ENABLED=auto`
+- Dynamic instrumentation configured for collecting additional error context
+- Traffic generation script that hits all endpoints for 2+ minutes to populate APM traces and runtime metrics
+- Verification commands to confirm: tracer attached (DATADOG TRACER CONFIGURATION in logs), traces received by agent, DogStatsD receiving JVM metrics
+- Validation in the Datadog UI: APM > Services shows the service, APM > Traces shows spans, Runtime Metrics sidebar shows JVM heap/GC/threads
+
+**Naming convention:** `{framework}{major-version}-dd-tracer` (e.g., `springboot2x-dd-tracer`, `springboot4x-dd-tracer`). Omit the version suffix for the primary/default version.
+
+**Prerequisite:** The corresponding `setup-{framework}` skill must be completed first. State this explicitly in the SKILL.md prerequisites section.
+
+**Reminder:** Always check if dd-tracer is already running in the environment before instrumenting. If the `skills/` folder already has a relevant dd-tracer skill, use it instead of creating a new one.
+
+---
 
 ## Guidelines
-- Keep simple (Hello World level)
-- Assume no prior dev knowledge
-- Small, atomic steps
-- Individual tests only
-- Wait for explicit approval between phases
-- Focus and independence per app
+
+- **Simplicity:** Keep applications at Hello World level. Three endpoints with logging and random status codes is sufficient.
+- **Atomic steps:** Small, individually testable steps. Wait for explicit approval between phases.
+- **Version compatibility:** Ensure all versions across the tech stack are compatible (Java version, Spring Boot version, Tomcat version, Maven plugins).
+- **Documentation:** Every skill needs a README.md with setup, deployment, verification, and cleanup steps.
+- **Security:** This plugin will be committed to a public GitHub repo. Never commit API keys, private keys, passwords, or secrets. Use environment variables and `.env.example` templates.
+- **Git hygiene:** Create a `.gitignore` to exclude `target/`, `.idea/`, `*.class`, `*.jar`, logs, and other build artifacts.
+
 ---
 
-## 1a-TODO-JAVA.md
+## Tools & References
 
-## TASKS:
-* A folder named springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback contains a Java 17 web app using Spring Boot version 3.5.9 with embedded Tomcat version 10.1 that uses openjdk 17.0.17 that uses Maven
-* Use SLF4J + Logback for logging implementation
-* Create 3 API endpoints:
-* First endpoint GET that returns some dummy data with 5 digits random number and writes to the log with every call. It logs to the console.
-* Second endpoint POST that writes to the log with every call. It logs to the SyslogAppender.
-* Third endpoint PUT that will return status code followed by writes to the log with every call. It logs to the FileAppender.
-* Every endpoint will have a 30% chance of returning 2XX status code, 40% chance of returning a 4XX status code, and 30% chance of returning a 5XX status code. 
-* Use Playwright Java MCP to test the Java app whenever viable.
-* Document instructions on testing these three endpoints using curl commands to README.md
-* Document instructions on running the app to README.md
-* Document instructions on packaging the executable JAR file deployment as well as running it in a Linux Ubuntu machine details to README.md
+### MCP Libraries (Context7)
 
+- `/context7/spring_io-spring-boot` — Spring Boot documentation
+- `/context7/tomcat_apache_tomcat-10_1-doc` — Tomcat documentation
+- `/context7/gradle?tokens=5000` — Gradle build tool
+- `/openjdk/jdk?tokens=5000` — OpenJDK documentation
+- `/microsoft/playwright-java` — Playwright Java for endpoint testing
 
-## USE CONTEXT7
-- use library /context7/gradle?tokens=5000
-- use library /context7/spring_io-spring-boot
-- use library /context7/tomcat_apache_tomcat-10_1-doc
-- use library /openjdk/jdk?tokens=5000
-- use library /microsoft/playwright-java for testing the java app
+### Datadog MCP Libraries (Context7)
 
+- `/datadog/dd-trace-java` — Automatic and dynamic instrumentation
+- `/datadog/datadog-agent` — Datadog Agent setup and configuration
 
-## Implementation should consider:
-- **README.md**: Include setup, deployment, verification, and cleanup steps
-- **Git Ignore**: Create a .gitignore to avoid committing common Java files or output to Git repo
-- **Simplicity**: Keep the Java project really simple
-- **PII and Sensitive Data**: Do be mindful that I will be committing the Java project to a public Github repo so do NOT commit private key or secrets.
-- **Version compatability**: Ensure versions compatibility across tech stack
+### Datadog Documentation
 
-## OTHER CONSIDERATIONS:
-- Run the project on MacOS bash terminal
-- Explain the steps you would take in clear, beginner-friendly language
-- Write the research on performing the task
-- Save the research to `2-RESEARCH.md`
-
-<!-- #### Alternatives to Apache Tomcat (as traditional deployment):
-1. **Embedded Servers (with Spring Boot)**:
-   - Jetty (lightweight, embeddable)
-   - Undertow (high-performance, non-blocking)
-
-2. **Standalone Servers**:
-   - Apache Tomcat (traditional deployment)
-   - Eclipse Jetty
-   - WildFly (full Java EE)
-   - GlassFish (Oracle's Java EE reference)
-   - Oracle WebLogic
-   - Red Hat JBoss Enterprise Application Platform
-   - IBM WebSphere
-
-3. **Container/Cloud Deployment**:
-   - Docker containers
-   - Kubernetes deployments
-   - Cloud platforms (AWS, Azure, Google Cloud) -->
----
-
-## 1b-TODO-DATADOG.md
-
-## OVERACHING OBJECTIVES:
-* Instrument my java app with dd-trace-java and datadog agent.
-* Instrument my java app so that it will dynamically collect more error logs when there is an error.
-
-## BACKGROUND:
-* A folder named springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback contains a Java 17 web app using Spring Boot version 3.5.9 with embedded Tomcat version 10.1 that uses openjdk 17.0.17 that uses Maven and SLF4J + Logback for logging implementation
-
-## TASKS:
-* Update the ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md file to include a section call "Datadog dd-trace-java" on steps to add dd-trace-java to the running .jar java app in MacOS and Linux Ubuntu OS. 
-* Add instructions to ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md on log linking - by using the dd-trace-java SDK to inject trace_id and span_id into your logs, Datadog's backend can automatically surface all logs related to a specific error event.
-* Add instructions to ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md on Dynamic Instrumentation for Java using dd-trace-java SDK - by adding "Log Probes" to the running application without redeploying code. The conditions are for a probe to turn up the volume of logging based on an error.
-* Explain the architecture and components interaction of dynamic instrumentation and how log probe work to fulfil my objective to the ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md
-* Add instructions to ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md on how to use Datadog Agent level filtering by configuring in a Linux Ubuntu environment the datadog.yaml and setting the Datadog Agent to send more of ERROR and CRITICAL logs. Also send more of "Info" logs during an incident.
-* Add instructions to ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md on how to manually trigger "more logs" when you catch an exception in Java, you can use the Datadog SDK dd-trace-java to add "Tags" or "Baggage" to the current span. This makes the "lesser" logs much more valuable during an error.
-* Explain how Datadog can automatically prioritise the logs ingestion that are part of an "Error Trace." in the ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md
-* Document instructions on testing the above tasks to ./springboot3dot5dot9__tomcat10dot1__openjdk17dot0dot17__logback/README.md
-* When adding instructions, please make sure that the instructions are simple and concise - don't bloat the instructions but over explaining.
-
-## Documentation Reference
-* https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/enabling/java/?tab=curl for adding dynamic instrumentation
-* https://docs.datadoghq.com/tracing/trace_collection/library_config/java/
-* https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/ for creating a probe, creating log probes, creating metric probes, creating span probes, and creating span tag probes
-* https://docs.datadoghq.com/tracing/other_telemetry/connect_logs_and_traces/java/?tab=maven for trace spans and logs correlation
-
-
-## USE CONTEXT7
-* use library /datadog/dd-trace-java for automatic instrumentation and dynamic instrumentation
-<!-- * use library /datadog/datadog-api-client-java when prompts indicates that Datadog API Client Java is needed -->
-* use library /datadog/datadog-agent when instructions are need for setting up Datadog Agent
-<!-- * use library /open-telemetry/opentelemetry-java for reference to OpenTelemetry Java API for custom instrumentation -->
-
-
-## Implementation should consider:
-* **README.md**: Include setup, deployment, verification, and cleanup steps
-* **Git Ignore**: Create a .gitignore to avoid committing common Java files or output to Git repo
-* **Simplicity**: Keep the Java project really simple
-* **PII and Sensitive Data**: Do be mindful that I will be committing the Java project to a public Github repo so do NOT commit private key or secrets.
-* **Version compatability**: Ensure versions compatibility across tech stack
-
-## OTHER CONSIDERATIONS:
-* Run the project on MacOS bash terminal
-* Explain the steps you would take in clear, beginner-friendly language
-* Write the research on performing the task
-* Keep the Datadog Instrumentation steps simple
-* Save the research to `2-RESEARCH.md`
----
-
-## 1a-TODO-JAVA.md
-
-## TASKS:
-* Create an endpoint called /payload-to-spantags of this Java Springboot app, enable GET request by accepting a payload. 
-* The payload is a JSON key value pair.
-* After which, add the payload key value pair as custom spans tag using the OpenTelemetry API for Java https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/api_support/?platform=traces&prog_lang=java 
-* Return 200 HTTP status if the operation is successful otherwise return error status.
-* Use Playwright Java MCP to test the Java app whenever viable.
-
-
-## USE CONTEXT7
-- use library /context7/gradle?tokens=5000
-- use library /context7/spring_io-spring-boot
-<!-- - use library /context7/tomcat_apache_tomcat-10_1-doc -->
-- use library /openjdk/jdk?tokens=5000
-- use library /microsoft/playwright-java for testing the java app
-
-
-## Implementation should consider:
-- **README.md**: Include setup, deployment, verification, and cleanup steps
-- **Git Ignore**: Create a .gitignore to avoid committing common Java files or output to Git repo
-- **Simplicity**: Keep the Java project really simple
-- **PII and Sensitive Data**: Do be mindful that I will be committing the Java project to a public Github repo so do NOT commit private key or secrets.
-- **Version compatability**: Ensure versions compatibility across tech stack
-
-## OTHER CONSIDERATIONS:
-- Run the project on MacOS bash terminal
-- Explain the steps you would take in clear, beginner-friendly language
-- Write the research on performing the task
-- Save the research to `2-RESEARCH.md`
+- [Java tracer library config](https://docs.datadoghq.com/tracing/trace_collection/library_config/java/)
+- [Dynamic instrumentation (Java)](https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/enabling/java/?tab=curl)
+- [Dynamic instrumentation probes](https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/)
+- [Trace-log correlation (Java)](https://docs.datadoghq.com/tracing/other_telemetry/connect_logs_and_traces/java/?tab=maven)
+- [OpenTelemetry API support (Java)](https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/api_support/?platform=traces&prog_lang=java)
+- [Datadog MCP server](https://docs.datadoghq.com/bits_ai/mcp_server.md) — use to validate traces and spans are received
