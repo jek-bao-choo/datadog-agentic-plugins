@@ -94,81 +94,69 @@ A **skill** is the atomic unit of work. It is a single, focused procedure — in
 
 Plugins can also include **commands** (slash commands users invoke), **hooks** (event-driven automation like session-start messages), **agents** (autonomous subagent definitions), and **MCP servers** (external service integrations). See the [quickstart plugin](./quickstart/) for a working example that uses commands and hooks.
 
+Each plugin also has a **`TODO-{plugin-name}.md`** at its root — a prompt for Claude that describes what to build within that plugin. It follows a two-phase structure (Phase 1: setup/provisioning, Phase 2: Datadog integration) and includes guidelines, MCP library references, and Datadog documentation links. Claude reads this file to understand what skills to create or improve.
+
 For the full conventions governing plugin.json, PLUGIN.md, SKILL.md, and all folder contents, see [MARKETPLACE.md](./MARKETPLACE.md).
 
 ---
 
 ## Plugin Categories
 
-Every plugin belongs to one of five categories. The category determines its naming convention, its dependency rules, and its role in a PoC stack.
+Every plugin belongs to a category. The category determines its naming convention, its dependency rules, and its role in a PoC stack.
 
-### 1. Infrastructure
-
-Where the prospect's workloads run. This is always the foundation layer of any PoC stack.
+### 1. Onboarding
 
 | Plugin | Description |
 |---|---|
-| `aws-ec2` | Bare-metal / VM hosting on AWS EC2 |
-| `aws-eks` | Managed Kubernetes on AWS EKS |
-| `aws-lambda` | Serverless compute on AWS Lambda |
-| `gcp-gke` | Managed Kubernetes on Google GKE |
-| `kubernetes-onprem` | Self-managed vanilla Kubernetes in the prospect's data center |
-| `openshift-onprem` | Red Hat OpenShift Container Platform on-premises |
-| `rhel-onprem` | Bare-metal / VM on Red Hat Enterprise Linux on-premises |
+| `quickstart` | Interactive PoC onboarding — menu command, session hook, Datadog doc lookup |
+
+### 2. Infrastructure
+
+Where the prospect's workloads run. This is the foundation layer of any PoC stack.
+
+| Plugin | Description |
+|---|---|
+| `aws-ec2` | EC2 instance provisioning on AWS with Datadog Agent |
+| `aws-eks` | Managed Kubernetes on AWS EKS with Datadog Operator |
+| `aws-fargate` | Serverless Kubernetes on AWS EKS with Fargate |
+| `aws-lambda` | Serverless functions on AWS Lambda (.NET) |
+| `gcp-gke` | Managed Kubernetes on Google GKE with Datadog Operator |
+| `gcp-apigee` | Apigee X API gateway on GCP with OpenTelemetry |
+| `gcp-cloudrun` | Serverless Java on Google Cloud Run |
+| `azure-vm` | Windows Server VMs on Azure via Bicep |
+| `openshift-onprem` | Azure Red Hat OpenShift with Datadog Operator/DDOT |
+| `sandbox-setup` | Sandbox environments — Splunk, LiteLLM, Docker Agent, OTel Collector, Cloud-Prem |
 
 **Dependency rule:** Infrastructure plugins have no `requires:` — they are the base layer.
 
-### 2. Instrumentation
+### 3. Instrumentation
 
-APM tracing for the prospect's application code. Each plugin covers one language ecosystem and offers skills for specific frameworks and tracer types.
-
-| Plugin | Description |
-|---|---|
-| `java-instrumentation` | Java apps — Spring Boot, generic Java, DD tracer and OTel SDK |
-| `python-instrumentation` | Python apps — Flask, FastAPI, Django, DD tracer and OTel SDK |
-| `nodejs-instrumentation` | Node.js apps — Express, DD tracer and OTel SDK |
-
-**Dependency rule:** Instrumentation plugins declare `requires:` listing the infrastructure plugins they can be composed with. The prospect must have at least one matching infrastructure plugin active.
-
-### 3. Databases — Managed
-
-Cloud-provider-managed database services where the provider handles the engine and the prospect only configures Datadog's integration.
+APM tracing and RUM for the prospect's application code. Each plugin covers one language or framework.
 
 | Plugin | Description |
 |---|---|
-| `aws-rds-postgres` | Amazon RDS for PostgreSQL |
-| `aws-rds-mysql` | Amazon RDS for MySQL |
+| `java-instrumentation` | Java — Spring Boot 2.7.5/3.5.9/4.0.2 with DD tracer |
+| `php-instrumentation` | PHP — Laravel 8/12 with dd-trace-php |
+| `python-instrumentation` | Python — FastAPI, LangChain, LangGraph with ddtrace |
+| `react-instrumentation` | React 19.1 with Datadog RUM and Feature Flags |
+| `vue-instrumentation` | Vue 3.5 with Datadog RUM |
+| `nextjs-instrumentation` | Next.js 15.4/15.5 with Datadog RUM |
+| `vanillajs-instrumentation` | Vanilla JS (Vite) with Datadog RUM |
+| `html-instrumentation` | Static HTML with Datadog RUM auto-injection |
+| `android-instrumentation` | Kotlin Android with Datadog RUM SDK |
+| `ios-instrumentation` | Swift/Xcode with Datadog SDK |
 
-**Dependency rule:** Managed database plugins have no `requires:` — the cloud provider manages the host.
+**Dependency rule:** Instrumentation plugins declare `requires:` listing compatible infrastructure plugins.
 
-### 4. Databases — Self-hosted and Kubernetes-hosted
-
-Database engines the prospect installs and manages themselves, either directly on a host or as containers in Kubernetes.
-
-| Plugin | Hosting | Description |
-|---|---|---|
-| `postgres-selfhosted` | VM / bare-metal | PostgreSQL installed on any host |
-| `mysql-selfhosted` | VM / bare-metal | MySQL installed on any host |
-| `oracle-selfhosted` | VM / bare-metal | Oracle Database installed on any host |
-| `postgres-k8s` | Kubernetes | PostgreSQL running as a K8s workload |
-| `mysql-k8s` | Kubernetes | MySQL running as a K8s workload |
-
-**Dependency rule:** Self-hosted database plugins declare `requires:` listing compatible infrastructure plugins (e.g., `aws-ec2`, `rhel-onprem`). Kubernetes-hosted database plugins declare `requires:` listing compatible K8s infrastructure plugins (e.g., `aws-eks`, `gcp-gke`, `kubernetes-onprem`, `openshift-onprem`).
-
-### 5. Message Queues — Managed, Self-hosted, and Kubernetes-hosted
-
-Same hosting model as databases, applied to message queue and streaming systems.
+### 4. Databases
 
 | Plugin | Hosting | Description |
 |---|---|---|
-| `aws-sqs` | Managed | Amazon Simple Queue Service |
-| `aws-msk` | Managed | Amazon Managed Streaming for Apache Kafka |
-| `kafka-selfhosted` | VM / bare-metal | Apache Kafka installed on any host |
-| `kafka-k8s` | Kubernetes | Kafka on K8s (Strimzi, Confluent Operator) |
-| `rabbitmq-selfhosted` | VM / bare-metal | RabbitMQ installed on any host |
-| `rabbitmq-k8s` | Kubernetes | RabbitMQ on K8s (RabbitMQ Operator) |
+| `aws-rds-mysql` | Managed | Amazon RDS MySQL 8.4 with read replica |
+| `mysql-selfhosted` | VM / bare-metal | MySQL 8.4 master-slave on EC2 |
+| `postgres-k8s` | Kubernetes | PostgreSQL 17 via Zalando Operator |
 
-**Dependency rule:** Same as databases — managed has no `requires:`, self-hosted requires a host-based infra plugin, K8s-hosted requires a K8s infra plugin.
+**Dependency rule:** Managed has no `requires:`. Self-hosted requires a host-based infra plugin. K8s-hosted requires a K8s infra plugin.
 
 ---
 
@@ -177,701 +165,204 @@ Same hosting model as databases, applied to message queue and streaming systems.
 ```
 datadog-agentic-plugins/
   .claude-plugin/
-    marketplace.json               # Marketplace registry
-  README.md
-  MARKETPLACE.md
+    marketplace.json               # Marketplace registry — 24 plugins
+
+  # Onboarding
+  quickstart/                      # Interactive menu, session hook, doc lookup
+    commands/menu.md
+    hooks/hooks.json
+    skills/fetching-datadog-docs/
 
   # ──────────────────────────────────────────────
-  # Quickstart (interactive onboarding)
+  # Infrastructure — AWS
   # ──────────────────────────────────────────────
 
-  quickstart/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    commands/
-      menu.md                      # /quickstart:menu — 26-option use case menu
-    hooks/
-      hooks.json                   # SessionStart hook
-      session-start.sh
-    skills/
-      fetching-datadog-docs/
-        SKILL.md
+  aws-ec2/                         # EC2 + Datadog Agent (Ubuntu)
+    skills/setup-ec2/
+    skills/install-dd-agent/
+  aws-eks/                         # EKS + Datadog Operator (Helm)
+    skills/setup-eks-cluster/
+    skills/install-dd-operator/
+  aws-fargate/                     # EKS Fargate (serverless K8s)
+    skills/setup-fargate-eks/
+  aws-lambda/                      # Lambda .NET (native AOT)
+    skills/setup-lambda-dotnet/
 
   # ──────────────────────────────────────────────
-  # Infrastructure
+  # Infrastructure — GCP
   # ──────────────────────────────────────────────
 
-  aws-ec2/
-    .claude-plugin/
-      plugin.json
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-ec2/
-        SKILL.md
-      install-dd-agent/
-        SKILL.md
-        references/
-          ubuntu.md
-          amazon-linux.md
-        scripts/
-          validate-agent.sh
-
-  aws-eks/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-eks-cluster/
-        SKILL.md
-        references/
-          k8s-1.27-1.28.md
-          k8s-1.29-plus.md
-      install-dd-operator/
-        SKILL.md
-        references/
-          k8s-1.27-1.28.md
-          k8s-1.29-plus.md
-        scripts/
-          validate-operator.sh
-      install-dd-helm/
-        SKILL.md
-        references/
-          k8s-1.27-1.28.md
-          k8s-1.29-plus.md
-        scripts/
-          validate-helm.sh
-
-  aws-lambda/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-lambda/
-        SKILL.md
-      install-dd-lambda-extension/
-        SKILL.md
-        references/
-          python-runtime.md
-          nodejs-runtime.md
-          java-runtime.md
-        scripts/
-          validate-lambda-extension.sh
-
-  gcp-gke/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-gke-cluster/
-        SKILL.md
-        references/
-          k8s-1.27-1.28.md
-          k8s-1.29-plus.md
-      install-dd-operator/
-        SKILL.md
-        references/
-          k8s-1.27-1.28.md
-          k8s-1.29-plus.md
-        scripts/
-          validate-operator.sh
-      install-dd-helm/
-        SKILL.md
-        references/
-          k8s-1.27-1.28.md
-          k8s-1.29-plus.md
-        scripts/
-          validate-helm.sh
-
-  kubernetes-onprem/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-vanilla-k8s/
-        SKILL.md
-        references/
-          k8s-1.26-1.28.md
-          k8s-1.29-plus.md
-      install-dd-operator/
-        SKILL.md
-        references/
-          k8s-1.26-1.28.md
-          k8s-1.29-plus.md
-        scripts/
-          validate-operator.sh
-      install-dd-helm/
-        SKILL.md
-        references/
-          k8s-1.26-1.28.md
-          k8s-1.29-plus.md
-        scripts/
-          validate-helm.sh
-
-  openshift-onprem/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-openshift/
-        SKILL.md
-        references/
-          ocp-4.12-4.13.md
-          ocp-4.14-plus.md
-      install-dd-operator/
-        SKILL.md
-        references/
-          ocp-4.12-4.13.md
-          ocp-4.14-plus.md
-        scripts/
-          validate-operator.sh
-
-  rhel-onprem/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-rhel/
-        SKILL.md
-        references/
-          rhel-8.md
-          rhel-9.md
-      install-dd-agent/
-        SKILL.md
-        references/
-          rhel-8.md
-          rhel-9.md
-        scripts/
-          validate-agent.sh
+  gcp-gke/                         # GKE + Datadog Operator
+    skills/setup-gke-cluster/
+    skills/install-dd-operator/
+  gcp-apigee/                      # Apigee X API gateway
+    skills/setup-apigee-x/
+  gcp-cloudrun/                    # Cloud Run Java
+    skills/setup-cloudrun-java/
 
   # ──────────────────────────────────────────────
-  # Instrumentation
+  # Infrastructure — Azure / OpenShift / On-prem
   # ──────────────────────────────────────────────
 
-  java-instrumentation/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-springboot/
-        SKILL.md
-      springboot-dd-tracer/
-        SKILL.md
-        references/
-          java8-sb2x.md
-          java11-sb2x.md
-          java17-sb3x.md
-          java21-sb3x.md
-        scripts/
-          validate-traces.sh
-        assets/
-          springboot2x-dd-sample-app/
-            src/
-            pom.xml
-            Dockerfile
-            docker-compose.yml
-            dd-java-agent-config.yml
-          springboot3x-dd-sample-app/
-            src/
-            pom.xml
-            Dockerfile
-            docker-compose.yml
-            dd-java-agent-config.yml
-      springboot-otel-sdk/
-        SKILL.md
-        references/
-          java11-sb2x.md
-          java17-sb3x.md
-          java21-sb3x.md
-        scripts/
-          validate-otel-traces.sh
-        assets/
-          springboot2x-otel-sample-app/
-            src/
-            pom.xml
-            Dockerfile
-            docker-compose.yml
-            otel-config.yml
-          springboot3x-otel-sample-app/
-            src/
-            pom.xml
-            Dockerfile
-            docker-compose.yml
-            otel-config.yml
-      generic-dd-tracer/
-        SKILL.md
-        references/
-          java8.md
-          java11.md
-          java17-plus.md
-        scripts/
-          validate-traces.sh
-        assets/
-          generic-java-dd-sample-app/
-            src/
-            pom.xml
-            Dockerfile
-            docker-compose.yml
-            dd-java-agent-config.yml
-      generic-otel-sdk/
-        SKILL.md
-        references/
-          java11.md
-          java17-plus.md
-        scripts/
-          validate-otel-traces.sh
-        assets/
-          generic-java-otel-sample-app/
-            src/
-            pom.xml
-            Dockerfile
-            docker-compose.yml
-            otel-config.yml
-
-  python-instrumentation/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      flask-dd-tracer/
-        SKILL.md
-        references/
-          python38-39.md
-          python310-plus.md
-          flask2x.md
-          flask3x.md
-        scripts/
-          validate-traces.sh
-        assets/
-          flask2x-dd-sample-app/
-            app.py
-            requirements.txt
-            Dockerfile
-            docker-compose.yml
-            ddtrace-config.py
-          flask3x-dd-sample-app/
-            app.py
-            requirements.txt
-            Dockerfile
-            docker-compose.yml
-            ddtrace-config.py
-      fastapi-otel-sdk/
-        SKILL.md
-        references/
-          python39-310.md
-          python311-plus.md
-        scripts/
-          validate-otel-traces.sh
-        assets/
-          fastapi-otel-sample-app/
-            main.py
-            requirements.txt
-            Dockerfile
-            docker-compose.yml
-            otel-config.py
-      django-dd-tracer/
-        SKILL.md
-        references/
-          python38-39-django4x.md
-          python310-plus-django5x.md
-        scripts/
-          validate-traces.sh
-        assets/
-          django4x-dd-sample-app/
-            manage.py
-            myproject/
-            requirements.txt
-            Dockerfile
-            docker-compose.yml
-            ddtrace-config.py
-          django5x-dd-sample-app/
-            manage.py
-            myproject/
-            requirements.txt
-            Dockerfile
-            docker-compose.yml
-            ddtrace-config.py
-
-  nodejs-instrumentation/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      express-dd-tracer/
-        SKILL.md
-        references/
-          node16-18-express4x.md
-          node20-plus-express4x.md
-          node20-plus-express5x.md
-        scripts/
-          validate-traces.sh
-        assets/
-          express4x-dd-sample-app/
-            app.js
-            package.json
-            Dockerfile
-            docker-compose.yml
-            dd-trace-init.js
-          express5x-dd-sample-app/
-            app.js
-            package.json
-            Dockerfile
-            docker-compose.yml
-            dd-trace-init.js
-      express-otel-sdk/
-        SKILL.md
-        references/
-          node16-18.md
-          node20-plus.md
-        scripts/
-          validate-otel-traces.sh
-        assets/
-          express-otel-sample-app/
-            app.js
-            package.json
-            Dockerfile
-            docker-compose.yml
-            otel-init.js
+  azure-vm/                        # Windows Server 2022 (Bicep)
+    skills/setup-azure-vm/
+  openshift-onprem/                # ARO + Datadog Operator/DDOT
+    skills/setup-openshift/
+    skills/install-dd-operator/
+  kubernetes-onprem/               # (planned) Self-managed vanilla Kubernetes
+  rhel-onprem/                     # (planned) Bare-metal / VM on RHEL
 
   # ──────────────────────────────────────────────
-  # Databases: Managed
+  # Infrastructure — Sandbox
   # ──────────────────────────────────────────────
 
-  aws-rds-postgres/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-rds-postgres/
-        SKILL.md
-        references/
-          pg-14.md
-          pg-15.md
-          pg-16.md
-      install-dd-dbm/
-        SKILL.md
-        references/
-          pg-14.md
-          pg-15-plus.md
-        scripts/
-          validate-dbm.sh
-        assets/
-          pg-sample-workload/
-            generate-queries.py
-            requirements.txt
-            sample-schema.sql
-
-  aws-rds-mysql/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-rds-mysql/
-        SKILL.md
-        references/
-          mysql-8.0.md
-          mysql-8.4.md
-      install-dd-dbm/
-        SKILL.md
-        references/
-          mysql-8.0.md
-          mysql-8.4.md
-        scripts/
-          validate-dbm.sh
-        assets/
-          mysql-sample-workload/
-            generate-queries.py
-            requirements.txt
-            sample-schema.sql
+  sandbox-setup/                   # Splunk, LiteLLM, Docker Agent, OTel, Cloud-Prem
+    skills/initialising-splunk-enterprise/
+    skills/initialising-litellm-gateway/
+    skills/running-dd-agent-apm/
+    skills/running-dd-dogstatsd/
+    skills/running-otel-collector/
+    skills/running-cloudprem/
+    skills/running-scality-docker/
+    skills/sending-test-traces/
+    skills/sending-test-events/
+    skills/sending-test-logs/
 
   # ──────────────────────────────────────────────
-  # Databases: Self-hosted
+  # Instrumentation — Backend
   # ──────────────────────────────────────────────
 
-  postgres-selfhosted/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-postgres/
-        SKILL.md
-        references/
-          pg-14.md
-          pg-15.md
-          pg-16.md
-      install-dd-dbm/
-        SKILL.md
-        references/
-          pg-14.md
-          pg-15-plus.md
-        scripts/
-          validate-dbm.sh
-        assets/
-          pg-sample-workload/
-            generate-queries.py
-            requirements.txt
-            sample-schema.sql
-
-  mysql-selfhosted/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-mysql/
-        SKILL.md
-        references/
-          mysql-8.0.md
-          mysql-8.4.md
-      install-dd-dbm/
-        SKILL.md
-        references/
-          mysql-8.0.md
-          mysql-8.4.md
-        scripts/
-          validate-dbm.sh
-        assets/
-          mysql-sample-workload/
-            generate-queries.py
-            requirements.txt
-            sample-schema.sql
-
-  oracle-selfhosted/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-oracle/
-        SKILL.md
-        references/
-          oracle-12c.md
-          oracle-19c.md
-          oracle-21c.md
-          oracle-23ai.md
-      install-dd-dbm/
-        SKILL.md
-        references/
-          oracle-12c.md
-          oracle-19c.md
-          oracle-21c-plus.md
-        scripts/
-          validate-dbm.sh
-        assets/
-          oracle-sample-workload/
-            generate-queries.py
-            requirements.txt
-            sample-schema.sql
+  java-instrumentation/            # Spring Boot 2.7.5 / 3.5.9 / 4.0.2
+    skills/setup-springboot2x/
+    skills/springboot2x-dd-tracer/
+    skills/setup-springboot/
+    skills/springboot-dd-tracer/
+    skills/setup-springboot4x/
+    skills/springboot4x-dd-tracer/
+  php-instrumentation/             # Laravel 8 / 12 with dd-trace-php
+    skills/setup-laravel12-nginx/
+    skills/laravel12-dd-tracer/
+    skills/setup-laravel8-apache2/
+    skills/laravel8-dd-tracer/
+  python-instrumentation/          # FastAPI, LangChain, LangGraph
+    skills/setup-fastapi/
+    skills/fastapi-dd-tracer/
+    skills/setup-langchain/
+    skills/langchain-dd-tracer/
+    skills/setup-langgraph/
+    skills/langgraph-dd-tracer/
+  nodejs-instrumentation/          # (planned) Node.js Express apps
 
   # ──────────────────────────────────────────────
-  # Databases: Kubernetes-hosted
+  # Instrumentation — Frontend (RUM)
   # ──────────────────────────────────────────────
 
-  postgres-k8s/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-postgres-k8s/
-        SKILL.md
-        references/
-          pg-operator.md
-          pg-helm.md
-      install-dd-dbm/
-        SKILL.md
-        scripts/
-          validate-dbm.sh
-        assets/
-          pg-sample-workload/
-            generate-queries.py
-            requirements.txt
-            sample-schema.sql
-
-  mysql-k8s/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-mysql-k8s/
-        SKILL.md
-        references/
-          mysql-operator.md
-          mysql-helm.md
-      install-dd-dbm/
-        SKILL.md
-        scripts/
-          validate-dbm.sh
-        assets/
-          mysql-sample-workload/
-            generate-queries.py
-            requirements.txt
-            sample-schema.sql
+  react-instrumentation/           # React 19.1 + Vite (RUM + Feature Flags)
+    skills/setup-react/
+    skills/react-dd-rum/
+  vue-instrumentation/             # Vue 3.5 + Vite (RUM)
+    skills/setup-vue/
+    skills/vue-dd-rum/
+  nextjs-instrumentation/          # Next.js 15.4 TS / 15.5 JS (RUM)
+    skills/setup-nextjs-ts/
+    skills/setup-nextjs-js/
+    skills/nextjs-dd-rum/
+  vanillajs-instrumentation/       # Vanilla JS + Vite (RUM)
+    skills/setup-vanillajs/
+    skills/vanillajs-dd-rum/
+  html-instrumentation/            # Static HTML + Nginx (RUM auto-inject)
+    skills/setup-html-nginx/
+    skills/html-dd-rum/
 
   # ──────────────────────────────────────────────
-  # Message Queues: Managed
+  # Instrumentation — Mobile
   # ──────────────────────────────────────────────
 
-  aws-sqs/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-sqs/
-        SKILL.md
-      install-dd-integration/
-        SKILL.md
-        scripts/
-          validate-sqs-integration.sh
-
-  aws-msk/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-msk/
-        SKILL.md
-        references/
-          kafka-3.5.md
-          kafka-3.6.md
-      install-dd-integration/
-        SKILL.md
-        references/
-          kafka-3.5.md
-          kafka-3.6.md
-        scripts/
-          validate-kafka-integration.sh
-        assets/
-          kafka-sample-producer-consumer/
-            producer.py
-            consumer.py
-            requirements.txt
-            docker-compose.yml
+  android-instrumentation/         # Kotlin Android (RUM SDK)
+    skills/setup-android/
+    skills/android-dd-sdk/
+  ios-instrumentation/             # Swift 6.2 / Xcode 26
+    skills/setup-ios/
 
   # ──────────────────────────────────────────────
-  # Message Queues: Self-hosted
+  # Databases — Managed
   # ──────────────────────────────────────────────
 
-  kafka-selfhosted/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-kafka/
-        SKILL.md
-        references/
-          kafka-3.5.md
-          kafka-3.6.md
-          kafka-3.7.md
-      install-dd-integration/
-        SKILL.md
-        references/
-          kafka-3.5.md
-          kafka-3.6-plus.md
-        scripts/
-          validate-kafka-integration.sh
-        assets/
-          kafka-sample-producer-consumer/
-            producer.py
-            consumer.py
-            requirements.txt
-            docker-compose.yml
-
-  rabbitmq-selfhosted/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-rabbitmq/
-        SKILL.md
-        references/
-          rabbitmq-3.12.md
-          rabbitmq-3.13.md
-      install-dd-integration/
-        SKILL.md
-        references/
-          rabbitmq-3.12.md
-          rabbitmq-3.13.md
-        scripts/
-          validate-rabbitmq-integration.sh
-        assets/
-          rabbitmq-sample-producer-consumer/
-            producer.py
-            consumer.py
-            requirements.txt
-            docker-compose.yml
+  aws-rds-mysql/                   # RDS MySQL 8.4 + read replica
+    skills/setup-rds-mysql/
+  aws-rds-postgres/                # (planned) Amazon RDS for PostgreSQL
 
   # ──────────────────────────────────────────────
-  # Message Queues: Kubernetes-hosted
+  # Databases — Self-hosted
   # ──────────────────────────────────────────────
 
-  kafka-k8s/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-kafka-k8s/
-        SKILL.md
-        references/
-          strimzi-operator.md
-          confluent-operator.md
-      install-dd-integration/
-        SKILL.md
-        scripts/
-          validate-kafka-integration.sh
-        assets/
-          kafka-sample-producer-consumer/
-            producer.py
-            consumer.py
-            requirements.txt
-            docker-compose.yml
+  mysql-selfhosted/                # MySQL 8.4 master-slave on EC2
+    skills/setup-mysql/
+  postgres-selfhosted/             # (planned) PostgreSQL on any host
+  oracle-selfhosted/               # (planned) Oracle Database on any host
 
-  rabbitmq-k8s/
-    .claude-plugin/
-      plugin.json
-    PLUGIN.md
-    skills/
-      setup-rabbitmq-k8s/
-        SKILL.md
-        references/
-          rabbitmq-operator.md
-      install-dd-integration/
-        SKILL.md
-        scripts/
-          validate-rabbitmq-integration.sh
-        assets/
-          rabbitmq-sample-producer-consumer/
-            producer.py
-            consumer.py
-            requirements.txt
-            docker-compose.yml
+  # ──────────────────────────────────────────────
+  # Databases — Kubernetes-hosted
+  # ──────────────────────────────────────────────
+
+  postgres-k8s/                    # Zalando Postgres Operator (PG 17)
+    skills/setup-postgres-k8s/
+  mysql-k8s/                       # (planned) MySQL on Kubernetes
+
+  # ──────────────────────────────────────────────
+  # Message Queues — Managed
+  # ──────────────────────────────────────────────
+
+  aws-sqs/                         # (planned) Amazon SQS
+  aws-msk/                         # (planned) Amazon MSK (Kafka)
+
+  # ──────────────────────────────────────────────
+  # Message Queues — Self-hosted
+  # ──────────────────────────────────────────────
+
+  kafka-selfhosted/                # (planned) Apache Kafka on any host
+  rabbitmq-selfhosted/             # (planned) RabbitMQ on any host
+
+  # ──────────────────────────────────────────────
+  # Message Queues — Kubernetes-hosted
+  # ──────────────────────────────────────────────
+
+  kafka-k8s/                       # (planned) Kafka on K8s (Strimzi, Confluent)
+  rabbitmq-k8s/                    # (planned) RabbitMQ on K8s (RabbitMQ Operator)
 ```
 
----
 
 ## How It Works: Composing a Stack
 
 A Datadog PoC stack is built by composing plugins from different categories. The minimum viable stack is one infrastructure plugin. A typical stack adds instrumentation, a database, and possibly a queue on top of that.
 
-**Example: E-commerce app on EKS with Java, PostgreSQL, and Kafka**
+**Example: Java app on EKS with MySQL**
 
 ```
-Infrastructure:    aws-eks           (EKS 1.29, DD Helm chart)
-Instrumentation:   java-instrumentation   (Spring Boot 3.2, Java 17, DD tracer latest)
-Database:          aws-rds-postgres       (PostgreSQL 16, DBM enabled)
-Message Queue:     kafka-k8s             (Strimzi operator, DD integration)
+Infrastructure:    aws-eks                (EKS 1.30, Datadog Operator via Helm)
+Instrumentation:   java-instrumentation   (Spring Boot 3.5.9, Java 17, DD tracer)
+Database:          aws-rds-mysql          (MySQL 8.4, read replica)
 ```
 
-Claude reads the PLUGIN.md for each selected plugin, loads the relevant SKILL.md files, selects the correct reference variant for the prospect's versions, and walks through each skill in order: set up infra first, install the Datadog Agent or operator, instrument the application, configure database monitoring, set up the queue integration, then validate everything end to end.
+Claude reads the PLUGIN.md for each selected plugin, loads the relevant SKILL.md files, and walks through each skill in order: set up infra first, install the Datadog Agent or operator, instrument the application, configure database monitoring, then validate everything end to end.
 
-**Example: Legacy on-prem stack with Python and Oracle**
+**Example: Python API on EC2 with self-hosted MySQL**
 
 ```
-Infrastructure:    rhel-onprem            (RHEL 9.3, DD Agent RPM)
-Instrumentation:   python-instrumentation (Django 4.2, Python 3.10, DD tracer)
-Database:          oracle-selfhosted      (Oracle 19c, DBM enabled)
+Infrastructure:    aws-ec2                (Ubuntu 22.04, DD Agent)
+Instrumentation:   python-instrumentation (FastAPI 0.116, Python 3.9, ddtrace)
+Database:          mysql-selfhosted       (MySQL 8.4 master-slave on EC2)
 ```
 
-The prospect's private STACK.yaml (maintained outside this repository) records these selections and version pins. This repository provides the instructions; the prospect provides the configuration.
+**Example: React frontend with GKE backend**
+
+```
+Infrastructure:    gcp-gke                (GKE 1.34, Datadog Operator)
+Frontend:          react-instrumentation  (React 19.1, Datadog RUM + Feature Flags)
+Backend:           java-instrumentation   (Spring Boot 3.5.9, DD tracer)
+```
+
+The prospect selects the plugins that match their stack. Claude loads the relevant skills and guides them through setup step by step.
 
 ---
 
