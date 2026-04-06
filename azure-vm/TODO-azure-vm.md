@@ -17,11 +17,21 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Tagging: `owner="jek"`, `env="test"`, `criticality="low"`
 
 ## Phase 2: Datadog Agent / Operator Setup
-- Install Datadog Agent on Windows Server 2022
-- Configure IIS monitoring integration in Datadog
-- Collect Windows performance counters, IIS metrics, and .NET Framework metrics
-- Verify Agent is reporting to Datadog and IIS dashboard is populated
-- Document setup and teardown steps in `README.md`
+
+**Implementation steps:**
+- Download and install the Datadog Agent on Windows Server 2022 using the MSI installer (`datadog-agent-7-latest.amd64.msi`)
+- Configure the Agent: set `DD_API_KEY`, `DD_SITE`, `DD_HOSTNAME` in `C:\ProgramData\Datadog\datadog.yaml`
+- Enable the IIS integration: create `C:\ProgramData\Datadog\conf.d\iis.d\conf.yaml` with site names and metrics configuration
+- Enable .NET CLR metrics collection via the `dotnet_clr` check
+- Enable Windows Event Log collection: configure `win32_event_log.d/conf.yaml` for Application, System, and Security logs
+- Enable Windows performance counters: Processor, Memory, Disk, Network via `windows_performance_counters.d/conf.yaml`
+- Restart the Datadog Agent service: `& "C:\Program Files\Datadog\Datadog Agent\bin\agent.exe" restart-service`
+
+**Validation:**
+- Run `& "C:\Program Files\Datadog\Datadog Agent\bin\agent.exe" status` and confirm: API key valid, IIS check running, .NET CLR check running
+- Verify in Datadog UI: **Infrastructure > Host Map** shows the Windows Server host
+- Check **Dashboards > IIS Overview** — request rates, response codes, connection counts
+- Check **Logs > Search** — Windows Event Logs appearing with `source:windows`
 
 ## Guidelines
 - Keep it simple (Hello World level)

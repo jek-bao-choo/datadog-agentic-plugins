@@ -19,12 +19,25 @@ Deploy PostgreSQL on Kubernetes using the Zalando Postgres Operator:
 
 ## Phase 2: Datadog Database Monitoring
 
-Research and configure Datadog Database Monitoring (DBM) for PostgreSQL on Kubernetes:
+Configure Datadog Database Monitoring (DBM) for PostgreSQL on Kubernetes:
 
+**Implementation steps:**
+- Create a PostgreSQL monitoring user with the required permissions (`pg_monitor` role, `pg_stat_statements` extension enabled)
+- Configure the Datadog Agent's PostgreSQL integration at `conf.d/postgres.d/conf.yaml` with: host, port, username, password (from K8s secret), `dbm: true`
+- Enable query metrics collection (`collect_activity_samples: true`, `collect_plans: true`)
+- Enable explain plan collection for slow queries
+- Set unified service tags on the Agent (`DD_ENV`, `DD_SERVICE`, `DD_VERSION`)
+
+**Research tasks (document findings in README.md):**
 - Research on-prem offline Datadog Operator installation for DBM (same air-gapped/offline context as OpenShift on-prem environments)
 - Explain how the Datadog Operator and Agent interact with PostgreSQL to collect query metrics, explain plans, and activity data
 - Document the connection flow: Datadog Operator → DaemonSet Agent → PostgreSQL pod → query metrics
-- Verify DBM data appears in the Datadog Database Monitoring dashboard
+
+**Validation:**
+- Verify DBM data appears in **Database Monitoring > Query Metrics** in the Datadog UI
+- Confirm query samples are being collected (Database Monitoring > Query Samples)
+- Check explain plans are available for slow queries
+- Run `kubectl exec <agent-pod> -c agent -- agent status` and verify the PostgreSQL check is running without errors
 
 ## Guidelines
 

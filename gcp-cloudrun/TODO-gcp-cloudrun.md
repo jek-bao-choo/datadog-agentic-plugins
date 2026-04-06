@@ -18,12 +18,21 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Tagging: `owner:jek`, `env=test`
 
 ## Phase 2: Datadog Agent / Operator Setup
-- Expose JVM metrics via Spring Boot Actuator
-- Integrate Datadog monitoring for Cloud Run services
-- Research Datadog GCP Monitoring Integration via `terraform-gcp-datadog-integration` module for log collection
-- Reference: https://github.com/GoogleCloudPlatform/terraform-gcp-datadog-integration
-- Verify metrics and logs flow into Datadog
-- Document setup and teardown steps in `README.md`
+
+**Implementation steps:**
+- Expose JVM metrics via Spring Boot Actuator (`/actuator/metrics`, `/actuator/health`)
+- Add the Datadog Serverless agent as a sidecar to the Cloud Run service (via `--add-cloudsql-instances` or multi-container Cloud Run)
+- Set environment variables on the Cloud Run service: `DD_API_KEY`, `DD_SITE`, `DD_SERVICE`, `DD_ENV`, `DD_VERSION`
+- For APM tracing: attach `dd-java-agent.jar` via `JAVA_TOOL_OPTIONS=-javaagent:/path/to/dd-java-agent.jar`
+- Configure the Datadog GCP integration via `terraform-gcp-datadog-integration` module for log collection from Cloud Run → Datadog
+  - Reference: https://github.com/GoogleCloudPlatform/terraform-gcp-datadog-integration
+- Enable Cloud Run request metrics forwarding to Datadog via the GCP integration
+
+**Validation:**
+- Verify JVM metrics appear in **Metrics > Explorer** (search `jvm.heap_memory`)
+- Verify APM traces appear in **APM > Services** with the configured service name
+- Verify Cloud Run logs appear in **Logs > Search**
+- Check the **Serverless > Cloud Run** view in Datadog UI
 
 ## Guidelines
 - Keep it simple (Hello World level)

@@ -15,16 +15,30 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Resource naming: use "jek-" prefix where applicable
 
 ## Phase 2: Datadog Agent / Operator Setup
-- Research on-prem offline Datadog Operator installation for OpenShift
-- Assumption: prospect has initial internet access, then loses internet connectivity permanently
+
+**Implementation steps (online phase — while internet is available):**
+- Install the Datadog Operator via OLM (OperatorHub) or Helm on the OpenShift cluster
+- Create a Kubernetes secret for the Datadog API key
+- Apply the DatadogAgent custom resource (`datadog-agent.yaml`) with OpenShift-specific settings (SecurityContextConstraints)
+- If using DDOT Collector, apply the `datadog-subscription.yaml` for the OpenTelemetry components
+- Verify Agent pods are running: `oc get pods -l app.kubernetes.io/name=datadog`
+- Verify Agent is reporting: `oc exec <agent-pod> -c agent -- agent status`
+
+**Offline/air-gapped preparation (for environments that will lose internet):**
+- Mirror all required container images to an internal registry (Datadog Agent, Operator, DDOT Collector)
+- Package the Helm chart for offline installation (`helm pull`, `helm package`)
+- Document the air-gapped registry configuration and image pull secrets
 - Reference offline Helm chart installation guide: https://raw.githubusercontent.com/jek-bao-choo/splunk-otel-example/refs/heads/main/infrastructure-kubernetes/k8s-no-internet-offline-installation/README.md
-- In research, explain the following using simple diagrams:
-  - How the Datadog Operator works in an OpenShift cluster
-  - How the Datadog Agent runs in the OpenShift cluster (DaemonSet, node-level collection)
-  - Whether the Datadog OpenTelemetry (DDOT) Collector is included with the Operator
-  - The overall architecture of Operator -> Agent -> Datadog backend
-- Document the offline installation steps (image mirroring, chart packaging, air-gapped registry)
-- Append setup, deployment, verification, and cleanup steps to `README.md` after the task is fully completed
+
+**Research tasks (document findings in README.md with simple diagrams):**
+- How the Datadog Operator works in an OpenShift cluster
+- How the Datadog Agent runs in the OpenShift cluster (DaemonSet, node-level collection)
+- Whether the Datadog OpenTelemetry (DDOT) Collector is included with the Operator
+- The overall architecture of Operator → Agent → Datadog backend
+
+**Validation:**
+- Verify in Datadog UI: **Infrastructure > Kubernetes** shows the OpenShift cluster
+- Confirm metrics, logs, and (if DDOT) traces are flowing
 
 ## Guidelines
 - Keep it simple (Hello World level)

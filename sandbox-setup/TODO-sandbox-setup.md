@@ -7,11 +7,26 @@ Before starting either phase, check if a matching skill already exists under `sk
 ---
 
 
-## Phase 1: Environment Setup & Validation
+## Phase 1: Environment Setup
+
 - **Docker Containers** — Run Datadog Agent 7.68.3 with DogStatsD enabled. Read `DD_API_KEY` from `.env`. Configure for local metric and log collection.
-- Verify test metrics appear in the Datadog dashboard
+- **Shell scripts** — Send test logs to Datadog via HTTP API (`curl` to `https://http-intake.logs.datadoghq.com/v1/input`), send test events via Events API, send test traces.
+- **OTel Collector** — Run OpenTelemetry Collector via Docker Compose, configured to export to Datadog.
+- **Cloud-Prem** — Run Datadog Observability Pipelines locally for log routing.
 
 My setup: Macbook Pro M4, Claude Code terminal + VS Code
+
+## Phase 2: Datadog Telemetry Validation
+
+For each sandbox environment, validate that telemetry reaches Datadog:
+
+- **Agent validation:** Run `docker exec <agent-container> agent status` and confirm: API key valid, Forwarder connected, DogStatsD listening on port 8125/UDP
+- **Logs validation:** Check **Logs > Search** in Datadog UI — filter by the configured source tag
+- **Metrics validation:** Check **Metrics > Explorer** — search for custom metrics sent via DogStatsD
+- **Traces validation:** Check **APM > Traces** — filter by service name used in test trace scripts
+- **Events validation:** Check **Events > Explorer** — look for test events with configured tags
+- **OTel validation:** Verify OTLP traces flow through the collector to Datadog APM
+- **Cloud-Prem validation:** Verify logs appear in Datadog after routing through the pipeline
 
 ## Guidelines
 

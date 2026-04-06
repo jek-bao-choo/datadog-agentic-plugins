@@ -14,17 +14,46 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Build and run the Docker container
 - Verify the static site is accessible at `http://localhost:8080`
 
-## Phase 2: Datadog RUM Auto-Injection
+## Phase 2: Datadog RUM Instrumentation
 
-- Choose instrumentation method: CDN script tag or Nginx auto-injection module
-- If CDN: Add the Datadog RUM script tag to the `<head>` of HTML files
-- If Nginx auto-injection: Configure the Datadog agent with Nginx integration and enable RUM auto-injection
-- Configure application ID, client token, service name, and environment
-- Verify RUM events appear in the Datadog dashboard
+**Default approach: CDN script tag** (simpler, works everywhere)
+
+Add the Datadog RUM CDN script to the `<head>` of every HTML file:
+
+```html
+<script src="https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js" type="text/javascript"></script>
+<script>
+  window.DD_RUM && window.DD_RUM.init({
+    clientToken: '<DD_CLIENT_TOKEN>',
+    applicationId: '<DD_APPLICATION_ID>',
+    site: 'datadoghq.com',
+    service: 'html-webapp',
+    env: 'sandbox',
+    sessionSampleRate: 100,
+    sessionReplaySampleRate: 100,
+    trackUserInteractions: true,
+    trackResources: true,
+    trackLongTasks: true,
+  });
+</script>
+```
+
+**Advanced option: Nginx auto-injection module** — automatically injects the RUM script into all HTML responses without modifying source files. Use when you cannot edit the HTML source.
+
+**Validation:**
+- Open the HTML page in a browser, click around, then check **RUM > Sessions** in the Datadog UI
+- Verify page views, user interactions, and resource timing appear
+- Check browser console for any CSP errors (add `https://www.datadoghq-browser-agent.com` to `script-src` if needed)
 
 ## Guidelines
 
+- Keep it simple. The static site should be the smallest thing that demonstrates the RUM pattern.
+- Atomic steps: one change, one test, one commit.
+- Beginner-friendly: someone new to frontend observability should be able to follow along.
 - Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
+- Security: this is a public repo. No API keys, no secrets, no credentials in code or committed files. Use placeholders like `<DD_CLIENT_TOKEN>`.
+- Git hygiene: meaningful commit messages, small commits, `.gitignore` up to date.
+- Check existing skills before creating new ones. Use `/skill-creator` to create new skills.
 
 ## Tools
 

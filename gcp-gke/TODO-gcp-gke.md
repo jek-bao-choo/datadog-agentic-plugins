@@ -18,11 +18,19 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Cloud Monitoring integration research using `terraform-gcp-datadog-integration` module
 
 ## Phase 2: Datadog Agent / Operator Setup
-- Install Datadog Operator via Helm on the GKE cluster
-- Configure Cloud NAT for private clusters (research whether to create new NAT Gateway or reuse existing)
+
+**Implementation steps:**
+- Install the Datadog Operator via Helm (`helm install datadog-operator datadog/datadog-operator`)
+- Create a Kubernetes secret for the Datadog API key
+- Apply the DatadogAgent custom resource with cluster name, log/APM/process collection enabled
+- Configure Cloud NAT for private clusters — default to creating a new Cloud NAT. First check if one exists: `gcloud compute routers list --filter="region:<REGION>"`. If an existing NAT gateway is found, reuse it; otherwise create a new Cloud Router + Cloud NAT
 - Reference architecture diagram: https://raw.githubusercontent.com/GoogleCloudPlatform/terraform-gcp-datadog-integration/refs/heads/main/gcp-to-datadog-diagram.png
-- Verify Datadog Agent is running and collecting metrics/logs from GKE workloads
-- Document setup and teardown steps in `README.md`
+
+**Validation:**
+- Verify Agent pods are running: `kubectl get pods -l app.kubernetes.io/name=datadog`
+- Check Agent status: `kubectl exec <agent-pod> -c agent -- agent status | head -50`
+- Verify in Datadog UI: **Infrastructure > Kubernetes** shows the GKE cluster
+- Confirm metrics and logs are flowing from GKE workloads
 
 ## Guidelines
 - Keep it simple (Hello World level)

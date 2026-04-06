@@ -19,12 +19,23 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Tagging: `owner:jek`, `env=test`
 
 ## Phase 2: Datadog Agent / Operator Setup
-- Set up OpenTelemetry-based observability for Apigee backend services
-- Integrate Cloud Trace with Datadog for distributed tracing
-- Collect APM traces from Apigee backend services and forward to Datadog
-- Research how Apigee proxy telemetry data flows into Datadog
-- Verify traces appear in Datadog APM
-- Document setup and teardown steps in `README.md`
+
+**Implementation steps:**
+- Deploy the Datadog Agent on the GKE cluster hosting the Apigee backend (see `gcp-gke` plugin for Datadog Operator setup)
+- Instrument the backend Spring Boot application with `dd-java-agent.jar` (see `java-instrumentation` plugin) so Datadog captures traces from the backend service
+- Enable GCP Cloud Trace on the Apigee X instance for API proxy-level trace collection
+- Configure the Datadog GCP integration to pull Cloud Trace data into Datadog APM
+- Set unified service tags (`DD_SERVICE`, `DD_ENV`, `DD_VERSION`) on the backend application
+
+**Research tasks (document findings in README.md):**
+- How Apigee proxy telemetry (latency, error rates, request counts) flows into Datadog — via Cloud Trace, Cloud Monitoring, or direct OTLP export
+- Whether Apigee X natively supports OpenTelemetry trace context propagation through the proxy layer
+- How to correlate Apigee proxy traces with backend service traces in Datadog APM
+
+**Validation:**
+- Verify traces appear in **APM > Traces** in the Datadog UI, with spans from both the Apigee proxy layer and the backend service
+- Check **APM > Service Map** shows the request flow: Client → Apigee → Backend
+- Confirm Cloud Trace data is visible in the GCP Console as a cross-reference
 
 ## Guidelines
 - Keep it simple (Hello World level)
