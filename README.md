@@ -154,9 +154,18 @@ APM tracing and RUM for the prospect's application code. Each plugin covers one 
 |---|---|---|
 | `aws-rds-mysql` | Managed | Amazon RDS MySQL 8.4 with read replica |
 | `mysql-selfhosted` | VM / bare-metal | MySQL 8.4 master-slave on EC2 |
+| `mssql-selfhosted` | VM / bare-metal | Microsoft SQL Server 2019/2022 on Windows or Linux |
 | `postgres-k8s` | Kubernetes | PostgreSQL 17 via Zalando Operator |
 
 **Dependency rule:** Managed has no `requires:`. Self-hosted requires a host-based infra plugin. K8s-hosted requires a K8s infra plugin.
+
+### 5. Message Queues
+
+| Plugin | Hosting | Description |
+|---|---|---|
+| `azure-servicebus` | Managed | Azure Service Bus queues and topics |
+
+**Dependency rule:** Managed queue plugins have no `requires:` — the cloud provider manages the infrastructure.
 
 ---
 
@@ -298,6 +307,7 @@ datadog-agentic-plugins/
 
   mysql-selfhosted/                # MySQL 8.4 master-slave on EC2
     skills/setup-mysql/
+  mssql-selfhosted/                # MS SQL Server 2019/2022 on Windows or Linux
   postgres-selfhosted/             # (planned) PostgreSQL on any host
   oracle-selfhosted/               # (planned) Oracle Database on any host
 
@@ -313,6 +323,7 @@ datadog-agentic-plugins/
   # Message Queues — Managed
   # ──────────────────────────────────────────────
 
+  azure-servicebus/                # Azure Service Bus queues and topics
   aws-sqs/                         # (planned) Amazon SQS
   aws-msk/                         # (planned) Amazon MSK (Kafka)
 

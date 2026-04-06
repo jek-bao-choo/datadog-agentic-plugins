@@ -1,0 +1,5 @@
+{
+  "name": "mssql-selfhosted",
+  "description": "Set up Datadog Database Monitoring for self-hosted Microsoft SQL Server on Windows Server (Azure) or Linux.",
+  "version": "0.1.0"
+}

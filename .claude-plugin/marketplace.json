@@ -62,6 +62,12 @@
       "version": "0.1.0"
     },
     {
+      "name": "azure-servicebus",
+      "source": "./azure-servicebus",
+      "description": "Set up Datadog monitoring for Azure Service Bus queues and topics",
+      "version": "0.1.0"
+    },
+    {
       "name": "openshift-onprem",
       "source": "./openshift-onprem",
       "description": "Set up Datadog monitoring on Azure Red Hat OpenShift with Datadog Operator",
@@ -77,6 +83,12 @@
       "name": "mysql-selfhosted",
       "source": "./mysql-selfhosted",
       "description": "Set up Datadog Database Monitoring for self-hosted MySQL on EC2",
+      "version": "0.1.0"
+    },
+    {
+      "name": "mssql-selfhosted",
+      "source": "./mssql-selfhosted",
+      "description": "Set up Datadog Database Monitoring for self-hosted Microsoft SQL Server on Windows or Linux",
       "version": "0.1.0"
     },
     {

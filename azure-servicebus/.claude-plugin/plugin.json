@@ -1,0 +1,5 @@
+{
+  "name": "azure-servicebus",
+  "description": "Set up Datadog monitoring for Azure Service Bus. Covers namespace provisioning, queue/topic setup, and Datadog Azure integration for metrics and logs.",
+  "version": "0.1.0"
+}
