@@ -11,14 +11,12 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 **Goal:** For each Java framework and version combination, create a `setup-{framework}` skill that builds and runs the application — independent of any Datadog instrumentation.
 
-**What a setup skill produces:**
+**What the application produces:**
 
-- A working REST API with multiple endpoints (GET, POST, PUT at minimum) that exercise different code paths
+- Default to a REST API with multiple endpoints (GET, POST, and PUT at minimum) as the inbound entry point, as this is the most common PoC requirement. Only deviate from REST if the PoC explicitly requires an alternative — such as a message queue consumer (polling or long-polling), a gRPC or RPC server, a database reader, or another protocol-specific receiver. Do not mix inbound types unless explicitly instructed.
+- For HTTP entry points, use a standardised JSON response payload across all endpoints: `{ "status": "ok" | "error", "message": "...", "data": {} }` to ensure predictable integration when connecting multiple services. Do NOT apply this schema to non-HTTP entry points (e.g., message queue consumers, gRPC services) — use the message format appropriate to that protocol instead. Simulate realistic error rates with a random HTTP status code distribution (30% 2XX, 40% 4XX, 30% 5XX).
+- Include at least one outbound call to a downstream dependency appropriate to the PoC — such as a relational database, message queue, another application service, or external API — using the protocol the PoC requires (HTTP REST, gRPC, SOFA RPC, message publishing, or other). If the downstream dependency or protocol is not explicitly stated in the PoC requirements, ask before assuming.
 - Structured logging via SLF4J + Logback (console, syslog, and file appenders) so logs are ready for Datadog log collection
-- Random HTTP status code distribution (30% 2XX, 40% 4XX, 30% 5XX) to generate realistic error rates
-- Multiple deployment options: local Maven, executable JAR, Docker (multi-stage build), and Kubernetes manifests with health probes
-- A README.md at the skill level documenting: build instructions, run instructions, curl test commands, and project structure
-- Playwright Java tests where viable for endpoint verification
 
 **Naming convention:** `setup-{framework}{major-version}` (e.g., `setup-springboot2x`, `setup-springboot4x`). Omit the version suffix for the primary/default version.
 
@@ -30,7 +28,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 **Goal:** For each setup skill, create a matching `{framework}-dd-tracer` skill that instruments the running application with Datadog APM — producing traces, metrics, and correlated logs.
 
-**What an instrumentation skill produces:**
+**What an instrumentation produces:**
 
 - Datadog Java tracer (`dd-java-agent.jar`) attached via `-javaagent` JVM argument or Kubernetes init container injection
 - Unified service tags configured: `DD_SERVICE`, `DD_ENV`, `DD_VERSION`

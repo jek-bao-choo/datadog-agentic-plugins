@@ -9,45 +9,90 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 ## Phase 1: Application Setup
 
-Build Android applications in Kotlin:
+**Goal:** For each Android application pattern, create a `setup-{pattern}` skill that builds and runs the app — independent of any Datadog instrumentation. All code is in Kotlin.
 
-- **Superapp (API 26)** — Main app matching the provided mockup. Clickable icons linking to WebView-hosted sub-apps. Material Icons, Material 3 design system. Target API 26 (Android 8.0) minimum as a SKILL with the application.
-- **WebView + SpringBoot Pattern** — Android WebView frontend backed by a SpringBoot REST service. Demonstrates hybrid native/web architecture as another SKILL with the application
+**What the application produces:**
 
-Tooling:
+- Default to UI-driven entry points — screen navigation, button interactions, and form submissions — as the primary inbound triggers for a mobile app. Depending on the PoC, also consider: deep links for external navigation, push notifications via Firebase Cloud Messaging (FCM), or background job triggers (WorkManager). Do not implement HTTP server endpoints in an Android app; it is a client, not a server. If the inbound trigger type is not specified in the PoC requirements, ask before assuming.
+- When the app communicates with a backend over HTTP, expect and handle a standardised JSON response: `{ "status": "ok" | "error", "message": "...", "data": {} }`. Parse this structure in your API client (Retrofit model classes or manual JSON parsing). Do NOT apply this schema expectation to non-HTTP backends — use the appropriate message format for that protocol instead. Simulate realistic backend error scenarios in any mock server or stub using a mix of success and error statuses.
+- Include at least one outbound network call to a backend service appropriate to the PoC — via Retrofit/OkHttp for HTTP REST, gRPC-Android stubs for gRPC, or other client libraries for the required protocol. If the backend service or protocol is not explicitly stated in the PoC requirements, ask before assuming.
+- Structured logging via `Timber` (wrapping Android `Log`) for logcat output, with structured log tags and messages so logs are ready for Datadog log collection
+
+**Example patterns built so far:**
+
+- **App (API 26)** — Main app matching the provided mockup. Clickable icons linking to WebView-hosted sub-apps. Material Icons, Material 3 design system. Target API 26 (Android 8.0) minimum.
+- **WebView + SpringBoot Pattern** — Android WebView frontend backed by a SpringBoot REST service. Demonstrates hybrid native/web architecture.
+
+**Tooling:**
+
 - SDKMAN! for managing JDK versions
 - IntelliJ IDEA Community Edition (not Android Studio)
 - JAVA_HOME must be set correctly for Gradle builds
 - All code is Kotlin, not Java
 
+**Naming convention:** `setup-{pattern}` (e.g., `setup-superapp`, `setup-webview`). Include a version suffix only when multiple Android API levels or major SDK versions are in scope.
+
+**Reminder:** Always check if an Android application is already running in the environment before creating a new one. If the `skills/` folder already has a relevant setup skill, use it instead of creating a new one.
+
+---
+
 ## Phase 2: Datadog Instrumentation
 
-Instrument with Datadog Android SDK and RUM:
+**Goal:** For each setup skill, create a matching `{pattern}-datadog-rum` skill that instruments the running application with Datadog RUM — producing sessions, views, actions, errors, and correlated logs.
 
-- Add `datadog-sdk-android` dependency and the Datadog Gradle plugin
-- Configure RUM with these settings:
+**What an instrumentation produces:**
+
+- `datadog-sdk-android` dependency and Datadog Gradle plugin added to the project
+- Datadog initialised in `Application.onCreate()` (not in Activity) with client token and application ID
+- Unified service tags configured: `DD_SERVICE`, `DD_ENV`, `DD_VERSION` (via `Datadog.initialize` configuration)
+- RUM configured with:
   - `trackUserInteractions = true`
   - `trackLongTasks = true`
   - `useViewTrackingStrategy(...)` for automatic view tracking
   - `sessionSampleRate = 100f` (capture everything during development)
-- Initialize Datadog in `Application.onCreate()` — not in Activity
-- Verify RUM sessions appear in Datadog dashboard
+- Log shipping configured via `dd-sdk-android-logs` to forward Timber/logcat logs to Datadog
+- Network call tracing via `dd-sdk-android-okhttp` plugin on the OkHttp client for distributed trace propagation to backend services
+- Verification steps: launch the app, navigate between screens, trigger errors; then confirm RUM sessions appear in Datadog dashboard
+- Validation in the Datadog UI: RUM > Sessions shows user sessions, RUM > Views shows screen views, RUM > Errors shows crashes and errors
+
+**Naming convention:** `{pattern}-datadog-rum` (e.g., `superapp-datadog-rum`, `webview-datadog-rum`).
+
+**Prerequisite:** The corresponding `setup-{pattern}` skill must be completed first. State this explicitly in the SKILL.md prerequisites section.
+
+**Reminder:** Always check if Datadog RUM is already configured in the environment before instrumenting. If the `skills/` folder already has a relevant RUM skill, use it instead of creating a new one.
+
+---
 
 ## Guidelines
 
-- Keep it simple. Each app should be the smallest thing that demonstrates the pattern.
-- Atomic steps: one change, one test, one commit.
-- Beginner-friendly: someone new to Android development should be able to follow along.
+- **Simplicity:** Keep applications at Hello World level. A few screens with basic interactions and logging is sufficient.
+- **Atomic steps:** Small, individually testable steps. Wait for explicit approval between phases.
+- **Version compatibility:** Ensure all versions across the tech stack are compatible (Android API level, Kotlin version, Gradle version, Android Gradle Plugin version).
 - Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
-- Security: this is a public repo. No API keys, no secrets, no credentials in code or committed files.
-- Git hygiene: meaningful commit messages, small commits, `.gitignore` up to date.
-- Check existing skills before creating new ones. Use `/skill-creator` to create new skills.
+- **Security:** This plugin will be committed to a public GitHub repo. Never commit API keys, private keys, passwords, or secrets. Use environment variables and `.env.example` templates.
+- **Git hygiene:** Create a `.gitignore` to exclude `build/`, `.gradle/`, `*.keystore`, local properties files, and other build artifacts.
+
+---
 
 ## Tools & References
 
-- Context7 MCP: `/android/nowinandroid` — Now in Android sample app
-- Context7 MCP: `/android/architecture-samples` — Android architecture samples
-- Context7 MCP: `/datadog/dd-sdk-android` — Datadog Android SDK source
-- Context7 MCP: `/datadog/dd-sdk-android-gradle-plugin` — Datadog Gradle plugin source
-- Datadog: Android RUM documentation
+### MCP Libraries (Context7)
+
+- `/android/nowinandroid` — Now in Android sample app
+- `/android/architecture-samples` — Android architecture samples
+
+### Datadog MCP Libraries (Context7)
+
+- `/datadog/dd-sdk-android` — Datadog Android SDK source
+- `/datadog/dd-sdk-android-gradle-plugin` — Datadog Gradle plugin source
+
+### Datadog Documentation
+
+- [Android RUM setup](https://docs.datadoghq.com/real_user_monitoring/android/)
+- [Android log collection](https://docs.datadoghq.com/logs/log_collection/android/)
+- [Android crash reporting](https://docs.datadoghq.com/real_user_monitoring/error_tracking/android/)
+- [Datadog MCP server](https://docs.datadoghq.com/bits_ai/mcp_server.md) — use to validate RUM sessions are received
+
+### External References
+
 - Material Design 3: https://m3.material.io
