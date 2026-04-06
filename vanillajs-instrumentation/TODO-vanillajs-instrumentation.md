@@ -1,4 +1,10 @@
-# TODO: vanillajs-instrumentation
+## How to use this file
+
+This file is a prompt for Claude. It describes what to build when working within the `vanillajs-instrumentation` plugin. Work proceeds in two phases: first set up the application, then instrument it with Datadog. Each phase produces skills following the conventions in `MARKETPLACE.md` and `README.md`.
+
+Before starting either phase, check if a matching skill already exists under `skills/`. If it does, use it. If it doesn't, create one using `/skill-creator` and place the application source, configs, and manifests in the skill's `references/`, `scripts/`, and `assets/` directories.
+
+---
 
 ## Phase 1: Vanilla JS Meter Reading App
 
