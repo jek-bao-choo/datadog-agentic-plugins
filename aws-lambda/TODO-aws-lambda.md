@@ -38,7 +38,7 @@ Instrument with OpenTelemetry (NOT dd-trace-dotnet):
 - Keep it simple. Each function should be the smallest thing that demonstrates the pattern.
 - Atomic steps: one change, one test, one commit.
 - Beginner-friendly: someone new to .NET Lambda development should be able to follow along.
-- Every function directory gets a `README.md` explaining what it does and how to deploy it.
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 - Security: this is a public repo. No API keys, no secrets, no credentials in code or committed files.
 - Git hygiene: meaningful commit messages, small commits, `.gitignore` up to date.
 - Check existing skills before creating new ones. Use `/skill-creator` to create new skills.

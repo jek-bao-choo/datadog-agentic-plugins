@@ -29,7 +29,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Provide small, atomic steps with individual tests
 - Wait for explicit approval between phases
 - Create a `.gitignore` to avoid committing sensitive Bicep output or parameter files with secrets
-- Document all steps in `README.md` including setup, startup, deployment, verification, and cleanup
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 - Do NOT reveal PII or secrets -- this is a public GitHub repo
 - Development tools: iTerm and Visual Studio Code
 - Development machine: MacBook M4

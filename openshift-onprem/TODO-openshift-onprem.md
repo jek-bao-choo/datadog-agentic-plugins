@@ -35,6 +35,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Development machine: MacBook M4
 - Explain steps in clear, beginner-friendly language
 - Use simple ASCII/text diagrams to illustrate architecture
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 
 ## Tools & References
 - Context7 library: `/datadog/datadog-operator`

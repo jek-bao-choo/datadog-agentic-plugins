@@ -53,7 +53,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 - **Simplicity:** Keep Terraform scripts really simple. Hello World level infrastructure.
 - **Atomic steps:** Small, individually testable steps. Wait for explicit approval between phases.
 - **Beginner-friendly:** Assume no prior Terraform knowledge. Explain steps clearly.
-- **Documentation:** Every skill needs a README.md with setup, deployment, verification, and teardown steps.
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 - **Security:** This plugin will be committed to a public GitHub repo. Never commit private keys, API keys, or secrets. Use `.env` files (gitignored) and `terraform.tfvars` (gitignored).
 - **Git hygiene:** Create a `.gitignore` to exclude `.terraform/`, `*.tfstate`, `*.tfstate.backup`, `*.tfvars`, and `.env`.
 - **My setup:** Macbook, running Claude Code through the terminal.

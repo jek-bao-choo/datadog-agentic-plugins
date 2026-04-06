@@ -55,7 +55,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 - **Simplicity:** Keep applications at Hello World level. Three endpoints with logging and random status codes is sufficient.
 - **Atomic steps:** Small, individually testable steps. Wait for explicit approval between phases.
 - **Version compatibility:** Ensure all versions across the tech stack are compatible (Java version, Spring Boot version, Tomcat version, Maven plugins).
-- **Documentation:** Every skill needs a README.md with setup, deployment, verification, and cleanup steps.
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 - **Security:** This plugin will be committed to a public GitHub repo. Never commit API keys, private keys, passwords, or secrets. Use environment variables and `.env.example` templates.
 - **Git hygiene:** Create a `.gitignore` to exclude `target/`, `.idea/`, `*.class`, `*.jar`, logs, and other build artifacts.
 

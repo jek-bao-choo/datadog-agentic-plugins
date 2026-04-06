@@ -32,7 +32,7 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Provide small, atomic steps with individual tests
 - Wait for explicit approval between phases
 - Create a `.gitignore` to avoid committing sensitive Terraform files (state, tfvars, etc.)
-- Document all steps in `README.md` including teardown
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 - Do NOT reveal PII or secrets -- this is a public GitHub repo
 - Development machine: MacBook M4
 - Explain steps in clear, beginner-friendly language

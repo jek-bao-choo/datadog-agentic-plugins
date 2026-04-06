@@ -46,7 +46,7 @@ Install the Datadog Agent on each EC2 instance and configure DBM for self-hosted
 
 - **Simplicity**: Keep everything Hello World level — less is more
 - **Beginner-friendly**: Assume no prior Terraform, MySQL, or Linux knowledge; explain every step
-- **README.md**: Each skill folder must have a README.md with setup, deployment, verification, and teardown steps
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 - **Security**: This is a public GitHub repo — never commit secrets, API keys, database passwords, SSH keys, or sensitive data
 - **Git hygiene**: Create a `.gitignore` to exclude `.terraform/`, `*.tfstate`, `*.tfstate.backup`, `.terraform.lock.hcl`, `*.tfvars` (if containing secrets)
 - **Teardown**: Document `terraform destroy` and any manual cleanup in the README

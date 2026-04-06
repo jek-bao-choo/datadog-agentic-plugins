@@ -21,6 +21,10 @@ Before starting either phase, check if a matching skill already exists under `sk
 - Configure application ID, client token, service name, and environment
 - Verify RUM events appear in the Datadog dashboard
 
+## Guidelines
+
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
+
 ## Tools
 
 - `/vercel/next.js` - Next.js framework documentation and APIs

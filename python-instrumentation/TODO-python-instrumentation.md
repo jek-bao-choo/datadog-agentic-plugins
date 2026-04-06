@@ -28,7 +28,7 @@ Environment and tooling:
 - Keep it simple. Each app should be the smallest thing that demonstrates the pattern.
 - Atomic steps: one change, one test, one commit.
 - Beginner-friendly: someone new to Python LLM development should be able to follow along.
-- Every app directory gets a `README.md` explaining what it does and how to run it.
+- Every skill directory includes a `README.md` for the app, infra, database, or other component built: prerequisites, tech stack (framework + version), step-by-step reproduction guide, run instructions, and teardown steps.
 - Security: this is a public repo. No API keys, no secrets, no credentials in code or committed files.
 - Git hygiene: meaningful commit messages, small commits, `.gitignore` up to date.
 - Check existing skills before creating new ones. Use `/skill-creator` to create new skills.
