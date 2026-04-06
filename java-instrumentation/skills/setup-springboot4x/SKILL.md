@@ -31,7 +31,7 @@ cd references/
 
 The application starts on `http://localhost:8080`.
 
-See `references/README.md` for full documentation.
+See `README.md` for full documentation.
 
 ## Validation
 

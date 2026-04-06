@@ -22,7 +22,7 @@ Provision two EC2 instances and set up MySQL 8.4 LTS master-slave replication us
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. Two phases:
+The complete setup is documented in `README.md`. Two phases:
 
 ### Phase 1: Provision infrastructure
 

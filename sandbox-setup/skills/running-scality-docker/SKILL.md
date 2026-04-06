@@ -20,10 +20,10 @@ Run Scality ZenkoCloudServer for S3-compatible object storage testing, available
 Two deployment options are documented in `references/`:
 
 ### Option A: Docker
-See `references/README.md` for running ZenkoCloudServer as a Docker container.
+See `README.md` for running ZenkoCloudServer as a Docker container.
 
 ### Option B: Kubernetes
-See `references/README-k8s.md` for deploying ZenkoCloudServer 9.3.0 on Kubernetes with persistent storage.
+See `README-k8s.md` for deploying ZenkoCloudServer 9.3.0 on Kubernetes with persistent storage.
 
 ## Validation
 

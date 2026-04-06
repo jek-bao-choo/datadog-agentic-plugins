@@ -22,7 +22,7 @@ Set up a Laravel 8 application with PHP 7.4 and Apache2 on Ubuntu 24.04. Provide
 
 ## Instructions
 
-The complete setup is documented in `references/README.md` across two phases:
+The complete setup is documented in `README.md` across two phases:
 
 ### Phase 1 — Local Docker Setup
 
@@ -34,7 +34,7 @@ docker run -d --name travellist -p 8080:80 travellist-laravel8:latest
 
 ### Phase 2 — EC2 Native Install
 
-Install PHP 7.4, Apache2, Composer 2.2.24, and Laravel 8 on the EC2 instance. See `references/README.md` for the full SSH command sequence covering:
+Install PHP 7.4, Apache2, Composer 2.2.24, and Laravel 8 on the EC2 instance. See `README.md` for the full SSH command sequence covering:
 
 1. Install PHP 7.4, Apache2, and utilities
 2. Install Composer 2.2.24 (required for PHP 7.4 compatibility)
@@ -46,7 +46,7 @@ Install PHP 7.4, Apache2, Composer 2.2.24, and Laravel 8 on the EC2 instance. Se
 
 ## Reference Files
 
-- `references/README.md` — Complete phase-by-phase guide
+- `README.md` — Complete phase-by-phase guide
 - `references/Dockerfile` — Docker image for local development
 - `references/travellist-project.conf` — Apache VirtualHost configuration
 - `references/routes-web.php` — Laravel route snippet (phpinfo endpoint)

@@ -22,7 +22,7 @@ Deploy a LiteLLM Gateway on Google Cloud Run with Cloud SQL PostgreSQL for budge
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. Key steps:
+The complete setup is documented in `README.md`. Key steps:
 
 ### 1. Enable GCP APIs
 
@@ -72,7 +72,7 @@ claude
 
 ## Reference Files
 
-- `references/README.md` — Complete deployment guide with architecture diagram
+- `README.md` — Complete deployment guide with architecture diagram
 - `references/config.yaml` — LiteLLM model and budget configuration
 - `references/Dockerfile` — Container image definition
 - `references/.env.example` — Required environment variables template

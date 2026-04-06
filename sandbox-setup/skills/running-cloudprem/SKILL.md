@@ -44,7 +44,7 @@ echo "DD_API_KEY=<YOUR_API_KEY>" > .env
 docker compose -f references/docker-compose-rendition2.yml up -d
 ```
 
-See `references/README-rendition1.md` and `references/README-rendition2.md` for detailed configuration and architecture.
+See `README-rendition1.md` and `README-rendition2.md` for detailed configuration and architecture.
 
 ## Validation
 

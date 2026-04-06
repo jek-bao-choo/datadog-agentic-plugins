@@ -22,7 +22,7 @@ Set up a Laravel 12 application with PHP 8.3 and Nginx on Ubuntu 24.04. Provides
 
 ## Instructions
 
-The complete setup is documented in `references/README.md` across two phases:
+The complete setup is documented in `README.md` across two phases:
 
 ### Phase 1 — Local Docker Setup
 
@@ -34,7 +34,7 @@ docker run -d --name travellist -p 8080:80 travellist-laravel12:latest
 
 ### Phase 2 — EC2 Native Install
 
-Install PHP 8.3, Nginx, PHP-FPM, Composer, and Laravel 12 directly on the EC2 instance. See `references/README.md` for the full SSH command sequence covering:
+Install PHP 8.3, Nginx, PHP-FPM, Composer, and Laravel 12 directly on the EC2 instance. See `README.md` for the full SSH command sequence covering:
 
 1. Install PHP 8.3, Nginx, PHP-FPM, and utilities
 2. Install Composer
@@ -47,7 +47,7 @@ Install PHP 8.3, Nginx, PHP-FPM, Composer, and Laravel 12 directly on the EC2 in
 
 ## Reference Files
 
-- `references/README.md` — Complete phase-by-phase guide
+- `README.md` — Complete phase-by-phase guide
 - `references/Dockerfile` — Docker image for local development
 - `references/travellist-nginx.conf` — Nginx server block configuration
 - `references/routes-web.php` — Laravel route snippet (phpinfo endpoint)

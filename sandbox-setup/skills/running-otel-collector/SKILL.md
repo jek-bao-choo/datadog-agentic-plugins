@@ -35,7 +35,7 @@ source .env && export DD_API_KEY
 python scripts/send_trace.py
 ```
 
-See `references/README.md` for full setup and configuration.
+See `README.md` for full setup and configuration.
 
 ## Validation
 

@@ -22,7 +22,7 @@ Provision an Amazon EKS cluster with complete VPC infrastructure, IAM roles, sec
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. The Terraform scripts in `scripts/` create:
+The complete setup is documented in `README.md`. The Terraform scripts in `scripts/` create:
 
 - VPC with 2 public subnets across 2 AZs
 - Security groups for cluster communication

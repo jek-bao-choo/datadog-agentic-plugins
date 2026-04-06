@@ -24,7 +24,7 @@ Build and deploy a FastAPI application with OpenAI API gateway functionality, Gu
 
 The complete application source is in `references/`. Key files:
 
-- `references/README.md` — Full setup documentation
+- `README.md` — Full setup documentation
 - `references/app/` — FastAPI application source (main.py, config, models, services)
 - `references/pyproject.toml` — Dependencies with pinned versions
 - `references/Dockerfile` — Container image definition

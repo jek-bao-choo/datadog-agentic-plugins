@@ -24,7 +24,7 @@ Deploy PostgreSQL 17 on Kubernetes using the Zalando Postgres Operator via Helm.
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. Key steps:
+The complete setup is documented in `README.md`. Key steps:
 
 ### 1. Install the Zalando Postgres Operator
 
@@ -65,7 +65,7 @@ kubectl apply -f references/patch-clusterrole.yaml
 
 ## Reference Files
 
-- `references/README.md` — Full deployment guide with pinned versions
+- `README.md` — Full deployment guide with pinned versions
 - `references/values-openshift-pg17.yaml` — Helm values for OpenShift + PG17
 - `references/postgresql-cluster.yaml` — PostgreSQL cluster custom resource
 - `references/local-storage.yaml` — Local StorageClass and PersistentVolume

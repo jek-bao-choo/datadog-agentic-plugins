@@ -21,7 +21,7 @@ Deploy a Java Spring Boot application to Google Cloud Run using Terraform, with 
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. The Terraform scripts in `scripts/` provision:
+The complete setup is documented in `README.md`. The Terraform scripts in `scripts/` provision:
 
 - Artifact Registry repository
 - Cloud Run service with Java Spring Boot image

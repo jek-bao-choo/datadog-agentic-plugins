@@ -31,7 +31,7 @@ java -jar target/*.jar
 
 The application starts on `http://localhost:8080`.
 
-See `references/README.md` for full documentation including Docker deployment and testing.
+See `README.md` for full documentation including Docker deployment and testing.
 
 ## Validation
 

@@ -24,7 +24,7 @@ Use the bundled shell script to send test traces:
 bash scripts/send-test-trace-grafana-live.sh
 ```
 
-See `references/README.md` for configuration details and expected output.
+See `README.md` for configuration details and expected output.
 
 ## Validation
 

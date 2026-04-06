@@ -23,7 +23,7 @@ Provision an AWS EKS cluster with Fargate compute profiles using Terraform. Pods
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. The Terraform scripts in `scripts/` create:
+The complete setup is documented in `README.md`. The Terraform scripts in `scripts/` create:
 
 - Custom VPC with public and private subnets across 2 AZs
 - EKS cluster with Kubernetes v1.33

@@ -22,7 +22,7 @@ Send test log data to Datadog to validate log ingestion pipelines.
 bash scripts/send-logs.sh
 ```
 
-See `references/README.md` for configuration and expected log format.
+See `README.md` for configuration and expected log format.
 
 ## Validation
 

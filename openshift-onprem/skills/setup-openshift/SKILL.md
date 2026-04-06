@@ -18,7 +18,7 @@ Provision an ARO 4 cluster using the Azure CLI.
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. Key steps:
+The complete setup is documented in `README.md`. Key steps:
 
 ### 1. Register providers
 

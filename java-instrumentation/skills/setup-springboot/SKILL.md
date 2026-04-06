@@ -16,7 +16,7 @@ version_matrix:
 
 Build and deploy a Spring Boot 3.5.9 REST API application. Provides the foundation for Datadog APM instrumentation (see `springboot-dd-tracer` skill).
 
-The sample application provides three REST API endpoints with different logging destinations and random HTTP status codes (30% 2XX, 40% 4XX, 30% 5XX). See `../springboot-dd-tracer/references/README.md` for the full application documentation.
+The sample application provides three REST API endpoints with different logging destinations and random HTTP status codes (30% 2XX, 40% 4XX, 30% 5XX). See `../springboot-dd-tracer/README.md` for the full application documentation.
 
 ## Prerequisites
 

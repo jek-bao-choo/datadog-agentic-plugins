@@ -32,7 +32,7 @@ See `references/lambda__globalcli__net8dot0__processmeterreading/`. Standard Lam
 ### Pattern 3: Web API (.NET 8.0)
 See `references/net8dot0__web__processmeterreading/`. ASP.NET Core Web API running on Lambda with SAM template.
 
-Full setup documentation: `references/README.md`
+Full setup documentation: `README.md`
 
 ## Validation
 

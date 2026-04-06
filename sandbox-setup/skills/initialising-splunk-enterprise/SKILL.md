@@ -118,8 +118,8 @@ Requires the AWS CLI installed and configured (`aws configure`).
 
 - **`scripts/docker-compose.yml`** — Docker Compose file defining the Splunk Enterprise and Universal Forwarder services
 - **`scripts/splunk-export.sh`** — Bash script for hourly-chunked REST API data export
-- **`references/README.md`** — Full step-by-step guide with troubleshooting. Read this for detailed instructions on verifying forwarding, checking input status, and diagnosing common issues.
+- **`README.md`** — Full step-by-step guide with troubleshooting. Read this for detailed instructions on verifying forwarding, checking input status, and diagnosing common issues.
 
 ## Troubleshooting
 
-For troubleshooting forwarding connections, input status, receiving ports, and event counts, read `references/README.md` — it has specific commands for each diagnostic step.
+For troubleshooting forwarding connections, input status, receiving ports, and event counts, read `README.md` — it has specific commands for each diagnostic step.

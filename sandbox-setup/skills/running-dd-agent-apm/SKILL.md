@@ -26,7 +26,7 @@ echo "DD_API_KEY=<YOUR_API_KEY>" > .env
 docker compose -f references/docker-compose.yml up -d
 ```
 
-See `references/README.md` for full configuration and port mappings.
+See `README.md` for full configuration and port mappings.
 
 ## Validation
 

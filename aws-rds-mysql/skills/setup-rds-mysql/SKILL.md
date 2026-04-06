@@ -22,7 +22,7 @@ Provision an Amazon RDS MySQL 8.4 primary instance with a read replica using Ter
 
 ## Instructions
 
-The complete setup is documented in `references/README.md`. The Terraform scripts in `scripts/` create:
+The complete setup is documented in `README.md`. The Terraform scripts in `scripts/` create:
 
 - Custom VPC with public subnets across 2 AZs
 - Security group allowing MySQL access (port 3306)

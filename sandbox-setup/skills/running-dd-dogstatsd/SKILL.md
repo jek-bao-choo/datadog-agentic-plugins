@@ -36,7 +36,7 @@ python scripts/test-metrics.py
 python scripts/test-metrics-no-datadog-dep.py
 ```
 
-See `references/README.md` for detailed metric types and expected output.
+See `README.md` for detailed metric types and expected output.
 
 ## Validation
 
