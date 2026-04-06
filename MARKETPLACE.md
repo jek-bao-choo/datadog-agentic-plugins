@@ -442,8 +442,9 @@ routing:                              # Maps version combos to reference files (
 |---|---|---|---|
 | `name` | Yes | string | Must exactly match the skill's directory name |
 | `description` | Yes | string | Written as a trigger description — include what the skill does AND when Claude should use it. Be pushy: "Use this skill whenever..." |
-| `version_matrix` | Yes | map | Every version axis this skill accepts as input. Values are lists. |
-| `routing` | Conditional | list | Required if the skill has `references/`. Maps version inputs to reference files. |
+| `version` | No | string | Semver version string (e.g., `1.0.0`). Recommended for tracking skill revisions. |
+| `version_matrix` | Conditional | map | Required when the skill supports multiple version-specific procedures. Lists every version axis and its supported values. Omit for skills without version axes (e.g., doc lookup, generic setup). |
+| `routing` | Conditional | list | Required if the skill has `references/` with version-variant files. Maps version inputs to reference files. |
 
 **Routing match syntax:**
 
