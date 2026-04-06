@@ -1,60 +1,42 @@
-# TODO — azure-vm
+## How to use this file
 
-> Combined from datadog-proof/bicep/ CLAUDE.md and TODO files.
+This file is a prompt for Claude. It describes what to build when working within the `java-instrumentation` plugin. Work proceeds in two phases: first set up the application, then instrument it with Datadog. Each phase produces skills following the conventions in `MARKETPLACE.md` and `README.md`.
+
+Before starting either phase, check if a matching skill already exists under `skills/`. If it does, use it. If it doesn't, create one using `/skill-creator` and place the application source, configs, and manifests in the skill's `references/`, `scripts/`, and `assets/` directories.
 
 ---
 
-## CLAUDE.md
+## Phase 1: Infrastructure Provisioning
+- Create a Windows Server 2022 VM using Bicep in Azure
+- VM size: Standard_D4_v5 (4 vCPUs, 16GB RAM) or similar DSv5 series
+- Region: Southeast Asia
+- Components: Resource Group, VPC (VNet), Subnet, Network Security Group (pointing to My IP)
+- After VM creation, install .NET Framework v4.8.1 app running on IIS in the Windows Server 2022
+- Directory structure: shallow directories
+- Resource naming: all Azure resources use "jek-" prefix
+- Tagging: `owner="jek"`, `env="test"`, `criticality="low"`
 
-# Bicep IaC Script Development
-
-## About
-- This folder contains multiple standalone Bicep IaC scripting projects
-
-## Structure
-- Shallow directories, avoid deep nesting
-- Naming: `<os>__<feature-or-runtime>__<other-info>`
-- Example: `ws2016__base`, `ubuntu2204__base`, `ws2022__dotnetfx48__aspdotnet`
-
-## Workflow
-1. **Research**: Create `2-RESEARCH.md` implementation plan
-2. **Review**: Wait for user approval
-3. **Plan**: Create detailed `3-PLAN.md` with atomic steps
-4. **Implement**: Execute step-by-step, mark "(COMPLETED)"
+## Phase 2: Datadog Agent / Operator Setup
+- Install Datadog Agent on Windows Server 2022
+- Configure IIS monitoring integration in Datadog
+- Collect Windows performance counters, IIS metrics, and .NET Framework metrics
+- Verify Agent is reporting to Datadog and IIS dashboard is populated
+- Document setup and teardown steps in `README.md`
 
 ## Guidelines
-- Keep simple (Hello World level)
-- Assume no prior dev knowledge
-- Small, atomic steps
-- Individual tests only
+- Keep it simple (Hello World level)
+- Assume no prior Bicep/Azure knowledge
+- Provide small, atomic steps with individual tests
 - Wait for explicit approval between phases
-- Focus and independence per app
----
+- Create a `.gitignore` to avoid committing sensitive Bicep output or parameter files with secrets
+- Document all steps in `README.md` including setup, startup, deployment, verification, and cleanup
+- Do NOT reveal PII or secrets -- this is a public GitHub repo
+- Development tools: iTerm and Visual Studio Code
+- Development machine: MacBook M4
+- Explain steps in clear, beginner-friendly language
 
-## 1a-TODO.md
-
-## TASK:
-- Create a Windows Server 2022, of Standard_D4_v5 (4 vCPUs, 16GB RAM) or similar series, using Bicep in Azure (Asia Pacific) Southeast Asia region
-- It should have relevant Resource Group, VPC, Subnet, amd Security Group pointing to My IP.
-- After the creation of Windows Server 2022, create a .NET Framework v4.8.1 app running on IIS server in the Windows Server 2022.
-- Keep simple (Hello World level)
-- Explain the steps to test the .NET Framework v4.8.1 application in the README.md
-- Think hard
-
-## USE CONTEXT7
-- use library /azure/azure-quickstart-templates
-- use library /microsoft/referencesource
-
-## IMPLEMENTATION CONSIDERATION: 
-- **Resource naming**: [prefix-resourcename, e.g., "jek-"]
-- **Tagging**: [required tags owner="jek", env="test", "criticality"="low"]
-- **README.md**: Include setup, start up, deployment, verification, and cleanup steps
-- **Git Ignore**: Create a .gitignore to avoid committing common Bicep files or output to Git repo
-- **Simplicity**: Keep each Bicep project really simple
-- **PII and Sensitive Data**: Do be mindful that I will be committing the Bicep project to a public Github repo so do NOT commit private key or secrets.
-
-## OTHER CONSIDERATIONS:
-- My development tools are iTerm and Visual Studio Code
-- Explain the steps you would take in clear, beginner-friendly language
-- Write the research on performing the task
-- Save the research to `2-RESEARCH.md`
+## Tools & References
+- Context7 library: `/azure/azure-quickstart-templates`
+- Context7 library: `/microsoft/referencesource`
+- Datadog docs: [Windows Agent](https://docs.datadoghq.com/agent/basic_agent_usage/windows/)
+- Datadog docs: [IIS Integration](https://docs.datadoghq.com/integrations/iis/)

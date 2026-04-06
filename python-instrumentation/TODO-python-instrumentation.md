@@ -1,86 +1,40 @@
-# TODO — python-instrumentation
+## How to use this file
 
-> Combined from datadog-proof/python/ CLAUDE.md and TODO files.
+This file is a prompt for Claude. It describes what to build when working within the `java-instrumentation` plugin. Work proceeds in two phases: first set up the application, then instrument it with Datadog. Each phase produces skills following the conventions in `MARKETPLACE.md` and `README.md`.
+
+Before starting either phase, check if a matching skill already exists under `skills/`. If it does, use it. If it doesn't, create one using `/skill-creator` and place the application source, configs, and manifests in the skill's `references/`, `scripts/`, and `assets/` directories.
 
 ---
 
-## CLAUDE.md
 
-# Python App Development
+## Phase 1: Application Setup
+- **LangGraph Conversational AI** — Multi-turn conversational agent using LangGraph. Use MemorySaver for checkpoint-based state persistence.
 
-## About
-Multiple Python server applications
+Environment and tooling:
+- Python 3.9.6 (system Python on macOS)
+- `uv` for package management (not pip, not poetry)
+- Credentials stored in `.env` files (never committed — ensure `.gitignore` covers them)
+- Each app gets its own directory with its own `pyproject.toml`
+- My tools: Macbook, iTerm2, tmux, Claude Code, VS Code
 
-## Structure
-- Shallow directories, avoid deep nesting
-- Naming: `<framework><version>__<implementation><pythonVersion>`
-    - Example: `fastapi0dot116__cpython3dot9dot6`, `langgraph0dot6dot5__cpython3dot9dot6`
-
-## Preference
-- Use uv https://github.com/astral-sh/uv
-- Example quick start:
-```bash
-uv init -p <pythonVersion> <framework><version>__<implementation><pythonVersion>
-cd <framework><version>__<implementation><pythonVersion>
-uv venv .venv
-source .venv/bin/activate
-uv add "<framework>=<frameworkVersion>"
-deactivate  # cleanup
-```
-- Document steps in README.md
-
-## Workflow
-1. **Research**: Create `2-RESEARCH.md` implementation plan
-2. **Review**: Wait for user approval
-3. **Plan**: Create detailed `3-PLAN.md` with atomic steps
-4. **Implement**: Execute step-by-step, mark "(COMPLETED)"
+## Phase 2: Datadog Instrumentation
+- Install `ddtrace[langchain]` in each project
+- Enable LLM Observability via `DD_LLMOBS_ENABLED=1` environment variable
+- Configure ddtrace auto-instrumentation for LangChain and LangGraph
+- Set up trace-log correlation so Datadog links traces to structured logs
+- Verify traces appear in Datadog APM and LLM Observability dashboards
 
 ## Guidelines
-- Keep simple (Hello World level)
-- Assume no prior dev knowledge
-- Small, atomic steps
-- Individual tests only
-- Wait for explicit approval between phases
-- Focus and independence per app
----
+- Keep it simple. Each app should be the smallest thing that demonstrates the pattern.
+- Atomic steps: one change, one test, one commit.
+- Beginner-friendly: someone new to Python LLM development should be able to follow along.
+- Every app directory gets a `README.md` explaining what it does and how to run it.
+- Security: this is a public repo. No API keys, no secrets, no credentials in code or committed files.
+- Git hygiene: meaningful commit messages, small commits, `.gitignore` up to date.
+- Check existing skills before creating new ones. Use `/skill-creator` to create new skills.
 
-## 1a-TODO.md
-
-## TASK:
-- Create an new project using latest Langchain framework with tool calling capabilities
-- First tool is online search
-- Second tool is get some metric data from Datadog API from app.datadoghq.com
-- It will be using OpenAI API
-- Reference the code in /langgraph0dot6dot5__cpython3dot9dot6
-- The credentials will be saved in .env
-- The .env must NOT be committed to Github public repo
-- Use `MemorySaver` (in-memory) for simple Hello World implementation
-- Each conversation gets a unique `thread_id` for state management
-- FastAPI will expose REST endpoints that trigger Langchain workflows
-- I will be using Python 3.9.6
-- Keep simple (Hello World level)
-- Think hard
-
-## USE CONTEXT7
-<!-- - use library /llmstxt/langchain-ai_github_io-langgraph-llms.txt
-- use library /context7/playwright_dev-python
-- use library /microsoft/playwright-python for end-to-end testing
-- use library /context7/fastapi_tiangolo
-- use library /context7/platform_openai
-- use library /context7/python_langchain-langgraph
-- use library /context7/python_langchain
-- use library /datadog/datadog-api-client-python -->
-- use library /llmstxt/python_langchain_llms_txt?tokens=5000
-
-## IMPLEMENTATION CONSIDERATION:
-- **README.md**: Include setup, start up, deployment, verification, and cleanup steps
-- **Git Ignore**: Create a .gitignore to avoid committing common Python files or output to Git repo
-- **Simplicity**: Keep the Python project really simple
-- **PII and Sensitive Data**: Do be mindful that I will be committing the Python project to a public Github repo so do NOT commit private key or secrets.
-
-## OTHER CONSIDERATIONS:
-- My computer is a Macbook
-- My development tools are iTerm2, tmux, Claude Code, and Visual Studio Code
-- Explain the steps you would take in clear, beginner-friendly language
-- Write the research on performing the task
-- Save the research to `2-RESEARCH.md`
+## Tools & References
+- Context7 MCP: `/llmstxt/python_langchain_llms_txt?tokens=5000` — LangChain documentation
+- FastAPI docs: https://fastapi.tiangolo.com
+- LangGraph docs: https://langchain-ai.github.io/langgraph/
+- uv docs: https://docs.astral.sh/uv/

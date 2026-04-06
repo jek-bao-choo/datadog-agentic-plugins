@@ -1,91 +1,84 @@
-# TODO — aws-ec2
+## How to use this file
 
-> Combined from datadog-proof/hcl-aws/ CLAUDE.md and TODO files.
+This file is a prompt for Claude. It describes what to build when working within the `java-instrumentation` plugin. Work proceeds in two phases: first set up the application, then instrument it with Datadog. Each phase produces skills following the conventions in `MARKETPLACE.md` and `README.md`.
+
+Before starting either phase, check if a matching skill already exists under `skills/`. If it does, use it. If it doesn't, create one using `/skill-creator` and place the application source, configs, and manifests in the skill's `references/`, `scripts/`, and `assets/` directories.
 
 ---
 
-## CLAUDE.md
 
-# IaC Terraform .hcl Script Development
+## Phase 1: Infrastructure Provisioning
 
-## About
-IaC Terraform .hcl script developments
+**Goal:** Create `setup-{target}` skills that provision EC2 instances ready for Datadog agent installation.
 
-## Structure
-- Shallow directories, avoid deep nesting
-- Naming: `<vm-product>__<os><os-version>`
-- Example: `ec2__ubuntu24`, `azurevm__fedora40`, `gce__ubuntu24`
+**What a provisioning skill produces:**
 
-## Workflow
-1. **Research**: Create `2-RESEARCH.md` implementation plan
-2. **Review**: Wait for user approval
-3. **Plan**: Create detailed `3-PLAN.md` with atomic steps
-4. **Implement**: Execute step-by-step, mark "(COMPLETED)"
+- Terraform scripts for VPC, Subnet, Security Group (SSH + app ports), and EC2 instances
+- SSH key pair configuration (key name: `jek-macbook-pro-key` in cloud provider, locally `~/.ssh/id_ed25519`)
+- Auto-detection of current IP for security group ingress rules
+- Region: ap-southeast-1
+- Resource naming: "jek-" prefix with tags `owner="jek"`, `env="test"`
+- README.md at the skill level documenting: terraform init/plan/apply, SSH access, verification, and teardown steps
+- A .gitignore excluding `.terraform/`, `*.tfstate*`, and other sensitive Terraform outputs
+
+**Naming convention:** `setup-{target}` (e.g., `setup-ec2`).
+
+**Current tasks from original TODO:**
+- Self-managed MySQL 8.4 LTS master-slave replication on two EC2 instances (simple setup without private subnet or bastion hosts)
+- Bash scripts for MySQL installation, database setup, and replication testing
+- Automate as much as possible, keep it simple
+
+---
+
+## Phase 2: Datadog Agent / Operator Setup
+
+**Goal:** Create `install-dd-{method}` skills that install the Datadog Agent on provisioned EC2 instances.
+
+**What an agent install skill produces:**
+
+- Datadog Agent installation via the install script (`install_script_agent7.sh`)
+- Log collection enabled (`logs_enabled: true` in datadog.yaml)
+- Syslog forwarding configured
+- Agent status verification commands
+- Validation in the Datadog UI: Infrastructure list shows the host, Logs show syslog events
+
+**Naming convention:** `install-dd-agent` with reference variants per AMI (e.g., `references/ubuntu.md`).
+
+**Prerequisite:** The corresponding `setup-{target}` skill must be completed first.
+
+---
 
 ## Guidelines
-- Keep simple (Hello World level)
-- Assume no prior Terraform knowledge
-- Small, atomic steps
-- Individual tests only
-- Wait for explicit approval between phases
-- Focus and independence per script segment
+
+- **Simplicity:** Keep Terraform scripts really simple. Hello World level infrastructure.
+- **Atomic steps:** Small, individually testable steps. Wait for explicit approval between phases.
+- **Beginner-friendly:** Assume no prior Terraform knowledge. Explain steps clearly.
+- **Documentation:** Every skill needs a README.md with setup, deployment, verification, and teardown steps.
+- **Security:** This plugin will be committed to a public GitHub repo. Never commit private keys, API keys, or secrets. Use `.env` files (gitignored) and `terraform.tfvars` (gitignored).
+- **Git hygiene:** Create a `.gitignore` to exclude `.terraform/`, `*.tfstate`, `*.tfstate.backup`, `*.tfvars`, and `.env`.
+- **My setup:** Macbook, running Claude Code through the terminal.
+
 ---
 
-## 1-TODO.md
+## Tools & References
 
-## TASK:
-- Create a terraform script in the folder ec2-mysql-v8dot4 to setup my self-managed MySQL on EC2
-- Use MySQL Long-Term Support (LTS) major versions i.e. MySQL 8.4
-- set it up in ap-southeast-1
-- I need two MySQL instances
-- I need it to help me prototype replication of master and slave replication. 
-- Keep the setup simple without using private subnet or bastion hosts to ssh
-- It should have relevant VPC, Subnet, Security Group pointing to My IP, and private key to ssh
-- Also include steps to setup MySQL Databases on the master and slave servers and test the replication (could be a bash script)
-- If needed explain the steps to copy the bash file from my local Macbook machine to the EC2 before giving me the command to SSH
-- Try to automate as much as possible 
-- Less is more so please keep it simple
-- Think hard
+### MCP Libraries (Context7)
 
+- `/hashicorp/terraform` — Terraform documentation
+- `/hashicorp/hcl` — HCL language reference
+- `/hashicorp/terraform-provider-aws` — AWS provider
+- `/terraform-aws-modules/terraform-aws-rds` — RDS module
+- `/terraform-aws-modules/terraform-aws-ecs` — ECS module
+- `/petoju/terraform-provider-mysql` — MySQL provider
+- `/terraform-docs/terraform-docs` — Documentation generator
 
-### Access & Authentication:
-- **SSH Key**: key name in cloud provider, it is called jek-macbook-pro-key in cloud provider
-- **SSH Locally**: when ssh use ~/.ssh/id_ed25519
-- **IP Addresses**: [current IP of the EC2 for SSH access, do auto-detection such as curl to an address to get it]
+### Datadog MCP Libraries (Context7)
 
-<!-- ## EXAMPLES:
-- [List any example files in the examples folders and explain how they should be used if any] -->
+- `/terraform-provider-datadog` — Datadog Terraform provider
+- `/datadog/datadog-agent` — Datadog Agent setup and configuration
 
-<!-- ## DOCUMENTATION: -->
+### Datadog Documentation
 
-## USE CONTEXT7
-- use library /hashicorp/terraform 
-- use library /hashicorp/hcl
-- use library /terraform-docs/terraform-docs 
-- use library /hashicorp/terraform-mcp-server 
-- use library /hashicorp/terraform-provider-aws 
-- use library /petoju/terraform-provider-mysql 
-- use library /terraform-aws-modules/terraform-aws-rds 
-- use library /terraform-aws-modules/terraform-aws-ecs 
-- use library /terraform-provider-datadog 
-- use library /terraform/docs 
-
-## Implementation should consider:
-- **Naming Convention**: All resources use "jek-" prefix with tags: owner="jek", env="test"
-- **Resource naming**: [prefix-resourcename, e.g., "jek-"]
-- **Tagging**: [required tags, e.g., owner="jek", env="test"]
-- **README.md**: Include setup, deployment, verification, and teardown steps
-- **Git Ignore**: Create a .gitignore to avoid committing sensitive terraform files or output to Git repo
-- **Simplicity**: Keep the terraform script really simple
-- **Teardown**: Document the steps to run the terraform script to README.md including tear down steps
-- **PII and Sensitive Data**: Do be mindful that I will be committing the script to a public Github repo
-
-## OTHER CONSIDERATIONS:
-- My computer is a Macbook
-- I'm running Claude Code through the terminal
-- Explain the steps you would take in clear, beginner-friendly language
-- Write the research on performing the task
-- Save the research to `2-RESEARCH.md`
-
-
-
+- [Datadog Agent installation (Linux)](https://docs.datadoghq.com/agent/basic_agent_usage/ubuntu/)
+- [Log collection](https://docs.datadoghq.com/logs/log_collection/)
+- [Datadog MCP server](https://docs.datadoghq.com/bits_ai/mcp_server.md) — use to validate metrics and logs are received

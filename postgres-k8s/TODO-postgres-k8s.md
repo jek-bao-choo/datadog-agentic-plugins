@@ -1,26 +1,44 @@
-# TODO — postgres-k8s
+## How to use this file
 
-> Combined from datadog-proof/yaml-kubernetes/ TODO files.
+This file is a prompt for Claude. It describes what to build when working within the `java-instrumentation` plugin. Work proceeds in two phases: first set up the application, then instrument it with Datadog. Each phase produces skills following the conventions in `MARKETPLACE.md` and `README.md`.
+
+Before starting either phase, check if a matching skill already exists under `skills/`. If it does, use it. If it doesn't, create one using `/skill-creator` and place the application source, configs, and manifests in the skill's `references/`, `scripts/`, and `assets/` directories.
 
 ---
 
-## 1b-TODO-DATADOG
 
-## TASK:
-* My current environment is an Azure Redhat Openshift cluster
-* I want to research into doing a on-prem Openshift installation of Datadog Operator
-* I want to assume that the prospect only has initial access to the internet, after which, will have no access to internet.
-* In the past, I have this guide for installing a helm chart https://raw.githubusercontent.com/jek-bao-choo/splunk-otel-example/refs/heads/main/infrastructure-kubernetes/k8s-no-internet-offline-installation/README.md but instead now I want to install a Datadog operator to an on-prem environment.
-* Please research how it can be done.
-* In your research explain how Datadog Operator works in Openshift cluster and how is a Datadog Agent going to run in the Openshift cluster as well as if there is Datadog OpenTelemetry Collector that comes with it. Also please explain how Datadog Operator work. 
-    * Explain these using simple diagrams are welcomed.
+## Phase 1: Database Provisioning
 
-## USE CONTEXT7
-* use library id /datadog/datadog-operator
+Deploy PostgreSQL on Kubernetes using the Zalando Postgres Operator:
 
-## OTHER CONSIDERATIONS:
-* Append setup, deployment, verification, and cleanup steps in README-DATADOG-OPERATOR.md only after the above task is fully completed
-* Explain the steps you would take in clear, beginner-friendly language
-* Keep all the explanation simple
-* Write the research on performing the task
-* Save the research to `2-RESEARCH.md`
+- Install Zalando Postgres Operator via Helm on K8s/OpenShift
+- Deploy PostgreSQL 17 cluster with local storage
+- Apply ClusterRole patches required for the operator to manage resources
+- Validate the PostgreSQL cluster is running and accepting connections
+- Document any OpenShift-specific adjustments (SCCs, routes, etc.)
+
+## Phase 2: Datadog Database Monitoring
+
+Research and configure Datadog Database Monitoring (DBM) for PostgreSQL on Kubernetes:
+
+- Research on-prem offline Datadog Operator installation for DBM (same air-gapped/offline context as OpenShift on-prem environments)
+- Explain how the Datadog Operator and Agent interact with PostgreSQL to collect query metrics, explain plans, and activity data
+- Document the connection flow: Datadog Operator → DaemonSet Agent → PostgreSQL pod → query metrics
+- Verify DBM data appears in the Datadog Database Monitoring dashboard
+
+## Guidelines
+
+- Keep it simple. Each manifest should be the smallest thing that demonstrates the pattern.
+- Atomic steps: one change, one test, one commit.
+- Beginner-friendly: someone new to K8s database operations should be able to follow along.
+- Every sub-directory gets a `README.md` explaining what it does and how to apply it.
+- Security: this is a public repo. No API keys, no secrets, no credentials in code or committed files.
+- Git hygiene: meaningful commit messages, small commits, `.gitignore` up to date.
+- Check existing skills before creating new ones. Use `/skill-creator` to create new skills.
+
+## Tools & References
+
+- Context7 MCP: `/datadog/datadog-operator` — Datadog Operator source and docs
+- Datadog: Database Monitoring for PostgreSQL on Kubernetes docs
+- Zalando Postgres Operator: https://postgres-operator.readthedocs.io
+- Helm: https://helm.sh/docs/
