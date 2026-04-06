@@ -1,0 +1,5 @@
+{
+  "name": "gcp-gke",
+  "description": "Set up and instrument a Datadog-monitored environment on Google Kubernetes Engine. Covers GKE cluster setup and Datadog Operator installation via Helm.",
+  "version": "0.1.0"
+}

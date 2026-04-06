@@ -8,15 +8,27 @@
   },
   "plugins": [
     {
-      "name": "aws-integration",
-      "source": "./aws-integration",
-      "description": "Set up Datadog AWS integration",
+      "name": "quickstart",
+      "source": "./quickstart",
+      "description": "Interactive Datadog PoC onboarding with auto-menu, MCP integration, live docs, and session documentation",
+      "version": "0.2.0"
+    },
+    {
+      "name": "aws-ec2",
+      "source": "./aws-ec2",
+      "description": "Set up and instrument a Datadog-monitored environment on Amazon EC2",
       "version": "0.1.0"
     },
     {
-      "name": "gcp-integration",
-      "source": "./gcp-integration",
-      "description": "Set up Datadog GCP integration",
+      "name": "gcp-gke",
+      "source": "./gcp-gke",
+      "description": "Set up and instrument a Datadog-monitored environment on Google Kubernetes Engine",
+      "version": "0.1.0"
+    },
+    {
+      "name": "gcp-apigee",
+      "source": "./gcp-apigee",
+      "description": "Set up Apigee X API gateway on GCP with OpenTelemetry observability",
       "version": "0.1.0"
     },
     {
@@ -35,12 +47,6 @@
       "name": "sandbox-setup",
       "source": "./sandbox-setup",
       "description": "Initialise sandbox environments for Datadog testing",
-      "version": "0.1.0"
-    },
-    {
-      "name": "quickstart",
-      "source": "./quickstart",
-      "description": "Interactive Datadog PoC onboarding with auto-menu, MCP integration, live docs, and session documentation",
       "version": "0.1.0"
     }
   ]

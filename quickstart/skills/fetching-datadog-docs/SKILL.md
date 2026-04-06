@@ -147,6 +147,18 @@ Datadog operates in multiple regions worldwide. The documentation site (`docs.da
 - This skill is lookup-only. It retrieves and reads documentation. It does not modify Datadog configurations, call the Datadog API, or interact with a Datadog account.
 - When the user asks about a specific integration, check the integrations documentation at `https://docs.datadoghq.com/integrations/` first, as integration-specific configuration is documented there rather than in the general product pages.
 
+## Validation
+
+A successful documentation lookup meets these criteria:
+
+1. The `llms.txt` index was fetched and searched (not skipped)
+2. At least one matching page URL was found in the index
+3. The full Markdown content of the matching page was retrieved
+4. The answer cites specific content from the fetched page — not paraphrased from memory
+5. If the user asked about a specific version, integration, or feature, the cited docs cover that exact topic
+
+If any of these are not met, retry the lookup with broader search terms or inform the user that the specific documentation could not be found.
+
 ## Failure Handling
 
 - If `https://docs.datadoghq.com/llms.txt` is unreachable, try fetching a known documentation page directly (e.g., `https://docs.datadoghq.com/getting_started.md`) to confirm whether the site is down or only the index is unavailable.

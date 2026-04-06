@@ -1,0 +1,5 @@
+{
+  "name": "aws-ec2",
+  "description": "Set up and instrument a Datadog-monitored environment on Amazon EC2. Covers EC2 provisioning and Datadog Agent installation on Ubuntu.",
+  "version": "0.1.0"
+}

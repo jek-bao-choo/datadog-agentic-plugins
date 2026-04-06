@@ -165,7 +165,7 @@ name: {plugin-name}                   # Must match the directory name exactly
 description: >
   One to three sentences describing what this plugin covers
   and when a prospect would use it.
-category: {infrastructure | instrumentation | database-managed | database-selfhosted | database-k8s | queue-managed | queue-selfhosted | queue-k8s}
+category: {onboarding | infrastructure | instrumentation | database-managed | database-selfhosted | database-k8s | queue-managed | queue-selfhosted | queue-k8s}
 requires: []                          # List of compatible infra plugin names, or empty
 supported_versions:                   # Summary of version coverage
   {axis_name}: [{values}]
@@ -178,7 +178,7 @@ supported_versions:                   # Summary of version coverage
 |---|---|---|---|
 | `name` | Yes | string | Must exactly match the plugin's directory name |
 | `description` | Yes | string | 1–3 sentences. Written for the prospect, not the contributor. Should answer "what does this plugin help me do?" |
-| `category` | Yes | enum | One of: `infrastructure`, `instrumentation`, `database-managed`, `database-selfhosted`, `database-k8s`, `queue-managed`, `queue-selfhosted`, `queue-k8s` |
+| `category` | Yes | enum | One of: `onboarding`, `infrastructure`, `instrumentation`, `database-managed`, `database-selfhosted`, `database-k8s`, `queue-managed`, `queue-selfhosted`, `queue-k8s` |
 | `requires` | Yes | list | Empty `[]` for infrastructure and managed plugins. Lists compatible infra plugin names for all others. |
 | `supported_versions` | Yes | map | Top-level version axes this plugin covers. Individual skills may cover subsets. |
 

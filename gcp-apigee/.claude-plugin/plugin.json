@@ -1,0 +1,5 @@
+{
+  "name": "gcp-apigee",
+  "description": "Set up Apigee X API gateway on GCP with OpenTelemetry observability and Datadog integration.",
+  "version": "0.1.0"
+}
