@@ -1,0 +1,5 @@
+{
+  "name": "gcp-cloudrun",
+  "description": "Deploy and monitor Java applications on Google Cloud Run with Datadog. Covers Terraform provisioning and JVM metrics via Actuator.",
+  "version": "0.1.0"
+}

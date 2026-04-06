@@ -1,0 +1,5 @@
+{
+  "name": "aws-fargate",
+  "description": "Set up a Datadog-monitored serverless Kubernetes environment on AWS EKS with Fargate compute.",
+  "version": "0.1.0"
+}

@@ -1,0 +1,5 @@
+{
+  "name": "mysql-selfhosted",
+  "description": "Set up Datadog Database Monitoring for self-hosted MySQL. Covers MySQL 8.4 master-slave replication on EC2 via Terraform.",
+  "version": "0.1.0"
+}

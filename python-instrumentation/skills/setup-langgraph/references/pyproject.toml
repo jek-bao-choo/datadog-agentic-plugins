@@ -1,0 +1,19 @@
+[project]
+name = "langgraph0dot6dot5-cpython3dot9dot6"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9.6"
+dependencies = [
+    "datadog-api-client==2.25.0",
+    "ddtrace>=3.12.2",
+    "duckduckgo-search==6.2.13",
+    "fastapi==0.116.1",
+    "httpx==0.28.1",
+    "langchain-core>=0.3.67",
+    "langchain-openai==0.2.11",
+    "langgraph==0.6.5",
+    "pytest==7.4.4",
+    "python-dotenv==1.0.1",
+    "uvicorn==0.24.0",
+]

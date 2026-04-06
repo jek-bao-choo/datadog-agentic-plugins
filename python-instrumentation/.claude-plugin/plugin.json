@@ -1,0 +1,5 @@
+{
+  "name": "python-instrumentation",
+  "description": "Instrument Python applications with Datadog APM. Covers FastAPI, LangChain, and LangGraph with the Datadog Python tracer.",
+  "version": "0.1.0"
+}

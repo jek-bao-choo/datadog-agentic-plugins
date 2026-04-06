@@ -1,0 +1,5 @@
+{
+  "name": "postgres-k8s",
+  "description": "Set up Datadog Database Monitoring for PostgreSQL running as a Kubernetes workload. Covers Zalando Postgres Operator with PostgreSQL 17.",
+  "version": "0.1.0"
+}

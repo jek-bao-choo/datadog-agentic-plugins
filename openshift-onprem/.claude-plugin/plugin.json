@@ -1,0 +1,5 @@
+{
+  "name": "openshift-onprem",
+  "description": "Set up Datadog monitoring on Azure Red Hat OpenShift (ARO) clusters with the Datadog Operator and DDOT Collector.",
+  "version": "0.1.0"
+}

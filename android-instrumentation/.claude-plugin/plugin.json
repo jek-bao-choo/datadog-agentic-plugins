@@ -1,0 +1,5 @@
+{
+  "name": "android-instrumentation",
+  "description": "Instrument Android applications with Datadog RUM and APM. Covers Kotlin Android apps with the Datadog SDK.",
+  "version": "0.1.0"
+}

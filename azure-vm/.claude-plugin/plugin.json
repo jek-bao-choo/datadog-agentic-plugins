@@ -1,0 +1,5 @@
+{
+  "name": "azure-vm",
+  "description": "Set up Datadog-monitored environments on Azure Virtual Machines. Covers Windows Server with .NET Framework and ASP.NET using Bicep.",
+  "version": "0.1.0"
+}

@@ -1,0 +1,5 @@
+{
+  "name": "aws-lambda",
+  "description": "Set up Datadog-monitored serverless functions on AWS Lambda. Covers .NET Lambda functions with Datadog tracing.",
+  "version": "0.1.0"
+}

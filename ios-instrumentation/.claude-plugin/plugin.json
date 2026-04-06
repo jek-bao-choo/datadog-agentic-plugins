@@ -1,0 +1,5 @@
+{
+  "name": "ios-instrumentation",
+  "description": "Instrument iOS/Swift applications with Datadog RUM and APM. Covers Swift 6.2 with Xcode 26.",
+  "version": "0.1.0"
+}

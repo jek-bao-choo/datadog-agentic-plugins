@@ -1,0 +1,707 @@
+# FastAPI OpenAI Gateway
+
+A simple API gateway for OpenAI chat completions built with FastAPI, Python 3.9.6, and production-ready deployment using Gunicorn with Uvicorn workers.
+
+## Features
+
+- 🚀 FastAPI 0.116.1 with automatic API documentation
+- 🤖 OpenAI API integration for chat completions
+- 🔒 Secure environment variable management
+- 📊 Request/response logging and monitoring
+- ✅ Input validation with Pydantic models
+- ⚡ Production-ready Gunicorn configuration
+- 🧪 Comprehensive test suite
+- 🐳 Container deployment ready
+
+## Prerequisites
+
+- Python 3.9.6
+- [uv](https://github.com/astral-sh/uv) package manager
+- OpenAI API key
+
+## Installation & Setup
+
+### 1. Clone and Setup Project
+
+```bash
+cd fastapi-v0dot116-cpython-v3dot9dot6
+
+# Create virtual environment
+uv venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Install dependencies
+uv sync
+```
+
+### 2. Environment Configuration
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env file with your OpenAI API key
+# OPENAI_API_KEY=your_actual_openai_api_key_here
+```
+
+**Important**: Never commit your `.env` file to version control. Your OpenAI API key should be kept secure.
+
+### 3. Verify Installation
+
+```bash
+# Check Python version and implementation
+python -c "import platform, sys; print(f'Implementation:\t{platform.python_implementation()}'); print(f'Version:\t{platform.python_version()}'); print(f'CPU Architecture:\t{platform.machine()} ({platform.architecture()[0]})'); print(f'Compiler:\t{platform.python_compiler()}');"
+```
+
+## Running the Application
+
+### Development Server
+
+```bash
+# Run with auto-reload for development
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+### Production Server
+
+```bash
+# Run with Gunicorn (production-ready)
+gunicorn app.main:app -c gunicorn.conf.py
+```
+
+The application will be available at:
+- **API**: http://127.0.0.1:8000
+- **Interactive Docs**: http://127.0.0.1:8000/docs
+- **ReDoc**: http://127.0.0.1:8000/redoc
+
+## API Endpoints
+
+### Health Check
+
+```bash
+GET /health
+```
+
+Returns service health status and system information.
+
+### Chat Completion
+
+```bash
+POST /chat
+Content-Type: application/json
+
+{
+  "message": "Hello, how are you?",
+  "model": "gpt-3.5-turbo",
+  "max_tokens": 150,
+  "temperature": 0.7
+}
+```
+
+**Parameters:**
+- `message` (required): The user's message to send to OpenAI
+- `model` (optional): OpenAI model to use (default: "gpt-3.5-turbo")
+- `max_tokens` (optional): Maximum tokens in response (default: 150)
+- `temperature` (optional): Response creativity 0-2 (default: 0.7)
+
+**Response:**
+```json
+{
+  "response": "I'm doing well, thank you for asking!",
+  "model": "gpt-3.5-turbo",
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 12,
+    "total_tokens": 22
+  },
+  "created_at": "2023-01-01T12:00:00Z"
+}
+```
+
+## Testing the Application
+
+### Quick Start Testing
+
+After setting up your OpenAI API key, test the application with these steps:
+
+#### 1. Start the Development Server
+
+```bash
+cd fastapi-v0dot116-cpython-v3dot9dot6
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+The server will start at http://127.0.0.1:8000
+
+#### 2. Test Health Endpoint
+
+```bash
+curl -X GET "http://127.0.0.1:8000/health"
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-08-05T18:57:05.780495",
+  "version": "1.0.0",
+  "environment": "development"
+}
+```
+
+#### 3. Test Chat Completion
+
+Using Python (recommended):
+```bash
+source .venv/bin/activate
+python -c "
+import httpx
+import json
+
+response = httpx.post('http://127.0.0.1:8000/chat', 
+                     json={
+                         'message': 'Hello! Can you tell me a short joke?',
+                         'model': 'gpt-3.5-turbo',
+                         'max_tokens': 50
+                     })
+print('Status:', response.status_code)
+print('Response:', json.dumps(response.json(), indent=2))
+"
+```
+
+Using curl:
+```bash
+curl -X POST "http://127.0.0.1:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Hello! Tell me a short joke",
+    "model": "gpt-3.5-turbo",
+    "max_tokens": 50
+  }'
+```
+
+Expected response format:
+```json
+{
+  "response": "Why couldn't the bicycle find its way home? Because it lost its bearings!",
+  "model": "gpt-3.5-turbo-0125",
+  "usage": {
+    "prompt_tokens": 18,
+    "completion_tokens": 24,
+    "total_tokens": 42
+  },
+  "created_at": "2025-08-05T18:58:31.052683"
+}
+```
+
+#### 4. View Interactive Documentation
+
+Open your browser and navigate to:
+- **Swagger UI**: http://127.0.0.1:8000/docs
+- **ReDoc**: http://127.0.0.1:8000/redoc
+
+You can test the API endpoints directly from the interactive documentation.
+
+#### 5. Test Production Server
+
+```bash
+# Stop development server (Ctrl+C) then start production server
+gunicorn app.main:app -c gunicorn.conf.py
+```
+
+This starts the application with 4 Uvicorn workers for production use.
+
+### Automated Test Suite
+
+#### Run All Tests
+
+```bash
+# Run the complete test suite
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_main.py
+```
+
+#### Test Coverage
+
+The test suite includes:
+- Configuration management tests (4 tests)
+- Pydantic model validation tests (8 tests)
+- OpenAI service integration tests with mocking (3 tests)
+- FastAPI endpoint tests (7 tests)
+- Error handling and validation tests
+
+**Total: 22 tests - All passing ✅**
+
+## Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OPENAI_API_KEY` | Your OpenAI API key | - | Yes |
+| `APP_NAME` | Application name | "FastAPI OpenAI Gateway" | No |
+| `APP_VERSION` | Application version | "1.0.0" | No |
+| `DEBUG` | Enable debug mode | false | No |
+| `HOST` | Server host | "127.0.0.1" | No |
+| `PORT` | Server port | 8000 | No |
+| `LOG_LEVEL` | Logging level | "INFO" | No |
+
+## Project Structure
+
+```
+fastapi-v0dot116-cpython-v3dot9dot6/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI application entry point
+│   ├── models.py            # Pydantic data models
+│   ├── config.py            # Configuration management
+│   └── services/
+│       ├── __init__.py
+│       └── openai_service.py # OpenAI API client
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py         # pytest configuration
+│   ├── test_config.py      # Configuration tests
+│   ├── test_models.py      # Model tests
+│   ├── test_main.py        # API endpoint tests
+│   └── test_openai_service.py # Service tests
+├── .env                    # Environment variables (not committed)
+├── .env.example           # Template for environment variables
+├── .gitignore             # Git ignore file
+├── gunicorn.conf.py       # Gunicorn configuration
+├── pyproject.toml         # Project configuration
+└── README.md              # This file
+```
+
+## Code Flow and Architecture
+
+### Application Startup Sequence
+
+The application follows a structured initialization pattern:
+
+#### 1. Configuration Loading (`app/config.py`)
+```python
+# Step 1: Load environment variables from .env file
+load_dotenv()  # Line 6
+
+# Step 2: Validate required configuration
+class Settings(BaseSettings):
+    openai_api_key: str  # Required - validates at startup (Lines 21-25)
+    
+# Step 3: Create global settings instance
+settings = get_settings()  # Line 30
+```
+
+#### 2. Service Initialization (`app/services/openai_service.py`)
+```python
+# Step 4: Initialize OpenAI client with API key
+class OpenAIService:
+    def __init__(self):
+        self.client = OpenAI(api_key=settings.openai_api_key)  # Line 11
+
+# Step 5: Create global service instance
+openai_service = OpenAIService()  # Line 47
+```
+
+#### 3. FastAPI App Creation (`app/main.py`)
+```python
+# Step 6: Create FastAPI application with lifespan management
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # Lines 18-22
+    logger.info(f"Starting {settings.app_name}")
+    yield  # Application runs here
+    logger.info("Shutting down application")
+
+# Step 7: Initialize FastAPI with configuration
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    lifespan=lifespan
+)  # Lines 24-30
+```
+
+#### 4. Middleware Setup (`app/main.py`)
+```python
+# Step 8: Add CORS middleware for cross-origin requests
+app.add_middleware(CORSMiddleware, ...)  # Lines 32-38
+
+# Step 9: Add request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):  # Lines 40-51
+    # Logs request details and timing
+```
+
+### API Request Flow
+
+#### Health Check Endpoint (`GET /health`)
+```
+1. HTTP Request → 2. log_requests middleware → 3. health_check() → 4. HealthResponse
+```
+
+**Detailed Steps:**
+1. **Request Reception**: FastAPI receives HTTP GET request at `/health`
+2. **Middleware Processing**: `log_requests` middleware (`app/main.py:41-51`) logs request details
+3. **Endpoint Handler**: `health_check()` function (`app/main.py:66-71`) executes
+4. **Response Creation**: `HealthResponse` model created with system info
+5. **Response Return**: JSON response sent back to client
+
+#### Chat Completion Endpoint (`POST /chat`)
+```
+1. HTTP Request → 2. Request Validation → 3. Service Layer → 4. OpenAI API → 5. Response Mapping
+```
+
+**Detailed Steps:**
+
+1. **Request Reception & Middleware** (`app/main.py:41-51`):
+   ```python
+   # Log incoming request
+   logger.info(f"Request: {request.method} {request.url}")
+   ```
+
+2. **Input Validation** (`app/main.py:74` → `app/models.py:5-20`):
+   ```python
+   # ChatRequest model automatically validates:
+   async def chat_completion(request: ChatRequest):
+       # - message: required string
+       # - model: defaults to "gpt-3.5-turbo"
+       # - max_tokens: defaults to 150
+       # - temperature: 0-2 range validation
+   ```
+
+3. **Service Layer Call** (`app/main.py:78`):
+   ```python
+   # Pass validated request to OpenAI service
+   response = await openai_service.send_chat_completion(request)
+   ```
+
+4. **OpenAI API Integration** (`app/services/openai_service.py:14-41`):
+   ```python
+   async def send_chat_completion(self, request: ChatRequest):
+       # Step 4a: Log request details
+       logger.info(f"Sending chat completion request with model: {request.model}")
+       
+       # Step 4b: Call OpenAI API
+       response = self.client.chat.completions.create(
+           model=request.model,
+           messages=[{"role": "user", "content": request.message}],
+           max_tokens=request.max_tokens,
+           temperature=request.temperature
+       )  # Lines 19-26
+       
+       # Step 4c: Map OpenAI response to internal model
+       chat_response = ChatResponse(
+           response=response.choices[0].message.content,
+           model=response.model,
+           usage=UsageInfo(...)
+       )  # Lines 31-39
+   ```
+
+5. **Error Handling** (`app/main.py:83-102`):
+   ```python
+   # Handle validation errors (400)
+   except ValueError as e:
+       raise HTTPException(status_code=400, ...)
+       
+   # Handle service errors (500)  
+   except Exception as e:
+       raise HTTPException(status_code=500, ...)
+   ```
+
+6. **Response Logging & Return** (`app/main.py:41-51`):
+   ```python
+   # Log response timing
+   process_time = time.time() - start_time
+   logger.info(f"Response: {response.status_code} - {process_time:.3f}s")
+   ```
+
+### Method Calling Sequence
+
+**For a typical `/chat` request:**
+
+```
+1. FastAPI Framework
+   ↓
+2. log_requests() middleware (app/main.py:41)
+   ↓
+3. chat_completion() handler (app/main.py:74)
+   ↓
+4. ChatRequest validation (app/models.py:5)
+   ↓
+5. openai_service.send_chat_completion() (app/services/openai_service.py:14)
+   ↓
+6. OpenAI client.chat.completions.create() (app/services/openai_service.py:19)
+   ↓
+7. ChatResponse model creation (app/services/openai_service.py:31)
+   ↓
+8. Response return chain back up
+   ↓
+9. log_requests() completion logging (app/main.py:48)
+   ↓
+10. JSON response to client
+```
+
+### Data Models and Validation
+
+**Pydantic Models** (`app/models.py`) provide automatic validation and serialization:
+
+- **ChatRequest**: Validates incoming chat requests with type checking and constraints
+- **ChatResponse**: Structures OpenAI API responses with usage information  
+- **UsageInfo**: Token usage tracking for billing and monitoring
+- **ErrorResponse**: Standardized error format for consistent API responses
+- **HealthResponse**: System health information for monitoring
+
+### Error Handling Strategy
+
+The application implements a three-tier error handling approach:
+
+1. **Global Exception Handler** (`app/main.py:53-63`): Catches unhandled exceptions
+2. **Endpoint-Specific Handlers** (`app/main.py:83-102`): Handles business logic errors  
+3. **Service Layer Exceptions** (`app/services/openai_service.py:43-45`): OpenAI API errors
+
+This architecture ensures clean separation of concerns, comprehensive logging, and robust error handling for a production-ready API gateway.
+
+## Deployment
+
+### Local Production Testing
+
+```bash
+# Test with Gunicorn locally
+gunicorn app.main:app -c gunicorn.conf.py
+```
+
+### Container Deployment
+
+```bash
+# Build Docker image
+docker build -t fastapi-openai-gateway .
+
+# Run container
+docker run -p 8000:8000 --env-file .env fastapi-openai-gateway
+```
+
+### Production Considerations
+
+- Use a reverse proxy (nginx) for SSL termination
+- Set up monitoring and logging aggregation
+- Configure proper firewall rules
+- Use environment-specific configuration
+- Implement rate limiting
+- Set up health checks for container orchestration
+
+## Security Best Practices
+
+- ✅ Environment variables for sensitive data
+- ✅ Input validation with Pydantic
+- ✅ Secure error handling (no sensitive data exposure)
+- ✅ `.env` files excluded from version control
+- ✅ Request/response logging without secrets
+
+## Monitoring & Logging
+
+The application includes:
+- Structured request/response logging
+- Request timing middleware
+- Health check endpoint for monitoring
+- OpenAI API usage tracking
+
+## Troubleshooting
+
+### Common Issues
+
+**1. OpenAI API Key Error**
+```
+ValueError: OPENAI_API_KEY environment variable is required
+```
+- Ensure your `.env` file contains a valid OpenAI API key
+- Check that the environment variable is set correctly
+
+**2. Import Errors**
+```
+ModuleNotFoundError: No module named 'app'
+```
+- Make sure you're in the project root directory
+- Ensure virtual environment is activated
+
+**3. Port Already in Use**
+```
+OSError: [Errno 48] Address already in use
+```
+- Change the port in your `.env` file or use `--port` flag
+- Kill any existing processes using the port
+
+**4. Tests Failing**
+```
+pytest collection errors
+```
+- Ensure test environment variables are set in `tests/conftest.py`
+- Run `uv sync` to install all dependencies including dev dependencies
+
+### Getting Help
+
+- Check the FastAPI documentation: https://fastapi.tiangolo.com/
+- OpenAI API documentation: https://platform.openai.com/docs/
+- Review application logs for detailed error messages
+
+## Future Roadmap: Multi-Provider AI Gateway
+
+This application is designed to be easily extended to support multiple AI providers. Here's the planned architecture for supporting OpenAI, Claude (Anthropic), Gemini (Google), and other APIs:
+
+### Planned Features
+
+#### Multi-Provider Support
+- **OpenAI**: GPT-3.5, GPT-4, GPT-4 Turbo ✅ **(Currently Implemented)**
+- **Anthropic Claude**: Claude 3 Haiku, Sonnet, Opus 🔄 **(Planned)**
+- **Google Gemini**: Gemini Pro, Gemini Ultra 🔄 **(Planned)**
+- **Additional Providers**: Cohere, Mistral, Local models 🔄 **(Future)**
+
+#### Enhanced API Design
+```json
+{
+  "message": "Hello! Tell me a joke",
+  "provider": "openai",           // openai, claude, gemini
+  "model": "gpt-3.5-turbo",      // provider-specific model
+  "max_tokens": 150,
+  "temperature": 0.7,
+  "provider_options": {           // provider-specific parameters
+    "top_p": 1.0,
+    "frequency_penalty": 0.0
+  }
+}
+```
+
+#### Unified Response Format
+```json
+{
+  "response": "Response text",
+  "provider": "openai",
+  "model": "gpt-3.5-turbo-0125",
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 12,
+    "total_tokens": 22,
+    "cost_usd": 0.000033        // cost tracking
+  },
+  "metadata": {
+    "latency_ms": 1250,
+    "provider_request_id": "req_123"
+  },
+  "created_at": "2025-08-05T18:58:31.052683"
+}
+```
+
+### Implementation Plan
+
+#### Phase 1: Architecture Foundation 🔄
+- Abstract provider interface
+- Provider registry system
+- Configuration management for multiple API keys
+- Cost tracking and analytics
+
+#### Phase 2: Claude Integration 🔄
+- Anthropic Claude API client
+- Claude-specific parameter mapping
+- Support for Claude 3 model family
+
+#### Phase 3: Gemini Integration 🔄
+- Google Gemini API client
+- Vertex AI integration
+- Gemini-specific features
+
+#### Phase 4: Advanced Features 🔄
+- Provider failover and load balancing
+- Response caching
+- Rate limiting per provider
+- Cost optimization routing
+
+### Development Guidelines for Multi-Provider Extension
+
+#### Project Structure (Future)
+```
+app/
+├── main.py                     # FastAPI application
+├── models.py                   # Pydantic models
+├── config.py                   # Multi-provider configuration
+├── providers/
+│   ├── __init__.py
+│   ├── base.py                 # Abstract provider interface
+│   ├── openai_provider.py      # OpenAI implementation ✅
+│   ├── claude_provider.py      # Claude implementation 🔄
+│   ├── gemini_provider.py      # Gemini implementation 🔄
+│   └── registry.py             # Provider registry
+├── services/
+│   ├── chat_service.py         # Unified chat service
+│   ├── cost_tracker.py         # Cost tracking
+│   └── cache_service.py        # Response caching
+└── utils/
+    ├── rate_limiter.py         # Rate limiting
+    └── metrics.py              # Analytics
+```
+
+#### Environment Variables (Future)
+```bash
+# OpenAI
+OPENAI_API_KEY=your_openai_key
+
+# Anthropic Claude
+CLAUDE_API_KEY=your_claude_key
+
+# Google Gemini
+GOOGLE_API_KEY=your_google_key
+GOOGLE_PROJECT_ID=your_project_id
+
+# Provider Settings  
+DEFAULT_PROVIDER=openai
+ENABLE_FAILOVER=true
+ENABLE_COST_TRACKING=true
+```
+
+## Development
+
+### Current Architecture
+
+The current implementation provides a solid foundation for multi-provider expansion:
+
+- **Modular Design**: Services are separated from the main application
+- **Abstract Models**: Pydantic models can be extended for different providers
+- **Configuration Management**: Environment-based configuration ready for multiple keys
+- **Comprehensive Testing**: Test framework supports mocking different providers
+
+### Adding New Features
+
+1. Add new Pydantic models in `app/models.py`
+2. Implement business logic in `app/services/`
+3. Add API endpoints in `app/main.py`
+4. Write tests in `tests/`
+5. Update this README if needed
+
+### Code Style
+
+- Follow Python PEP 8 guidelines
+- Use type hints for better code clarity
+- Write comprehensive docstrings
+- Maintain test coverage above 80%
+
+### Contributing to Multi-Provider Support
+
+If you're interested in contributing to the multi-provider functionality:
+
+1. **Fork the repository**
+2. **Create a feature branch** for the provider you want to add
+3. **Follow the abstract provider interface** (to be defined)
+4. **Add comprehensive tests** including provider-specific mocking
+5. **Update documentation** with provider-specific examples
+6. **Submit a pull request** with detailed description
+
+## License
+
+This project is for demonstration purposes. Please ensure you comply with OpenAI's usage policies and any applicable licenses.
+
+---
+
+Built with ❤️ using FastAPI, OpenAI, and modern Python development practices.

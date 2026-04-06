@@ -1,0 +1,5 @@
+{
+  "name": "aws-eks",
+  "description": "Set up and instrument a Datadog-monitored environment on Amazon Elastic Kubernetes Service. Covers EKS cluster provisioning via Terraform and Datadog Operator installation via Helm.",
+  "version": "0.1.0"
+}

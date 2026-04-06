@@ -1,0 +1,5 @@
+{
+  "name": "aws-rds-mysql",
+  "description": "Set up Datadog Database Monitoring for Amazon RDS MySQL. Covers RDS instance provisioning with read replicas via Terraform.",
+  "version": "0.1.0"
+}

@@ -20,6 +20,24 @@
       "version": "0.1.0"
     },
     {
+      "name": "aws-eks",
+      "source": "./aws-eks",
+      "description": "Set up and instrument a Datadog-monitored environment on Amazon EKS",
+      "version": "0.1.0"
+    },
+    {
+      "name": "aws-fargate",
+      "source": "./aws-fargate",
+      "description": "Set up a Datadog-monitored serverless Kubernetes environment on AWS EKS with Fargate",
+      "version": "0.1.0"
+    },
+    {
+      "name": "aws-lambda",
+      "source": "./aws-lambda",
+      "description": "Set up Datadog-monitored serverless functions on AWS Lambda",
+      "version": "0.1.0"
+    },
+    {
       "name": "gcp-gke",
       "source": "./gcp-gke",
       "description": "Set up and instrument a Datadog-monitored environment on Google Kubernetes Engine",
@@ -32,6 +50,42 @@
       "version": "0.1.0"
     },
     {
+      "name": "gcp-cloudrun",
+      "source": "./gcp-cloudrun",
+      "description": "Deploy and monitor Java applications on Google Cloud Run with Datadog",
+      "version": "0.1.0"
+    },
+    {
+      "name": "azure-vm",
+      "source": "./azure-vm",
+      "description": "Set up Datadog-monitored environments on Azure Virtual Machines",
+      "version": "0.1.0"
+    },
+    {
+      "name": "openshift-onprem",
+      "source": "./openshift-onprem",
+      "description": "Set up Datadog monitoring on Azure Red Hat OpenShift with Datadog Operator",
+      "version": "0.1.0"
+    },
+    {
+      "name": "aws-rds-mysql",
+      "source": "./aws-rds-mysql",
+      "description": "Set up Datadog Database Monitoring for Amazon RDS MySQL",
+      "version": "0.1.0"
+    },
+    {
+      "name": "mysql-selfhosted",
+      "source": "./mysql-selfhosted",
+      "description": "Set up Datadog Database Monitoring for self-hosted MySQL on EC2",
+      "version": "0.1.0"
+    },
+    {
+      "name": "postgres-k8s",
+      "source": "./postgres-k8s",
+      "description": "Set up Datadog Database Monitoring for PostgreSQL on Kubernetes",
+      "version": "0.1.0"
+    },
+    {
       "name": "java-instrumentation",
       "source": "./java-instrumentation",
       "description": "Instrument Java applications with Datadog APM",
@@ -41,6 +95,30 @@
       "name": "php-instrumentation",
       "source": "./php-instrumentation",
       "description": "Instrument PHP applications with Datadog APM",
+      "version": "0.1.0"
+    },
+    {
+      "name": "python-instrumentation",
+      "source": "./python-instrumentation",
+      "description": "Instrument Python applications with Datadog APM (FastAPI, LangChain, LangGraph)",
+      "version": "0.1.0"
+    },
+    {
+      "name": "frontend-rum",
+      "source": "./frontend-rum",
+      "description": "Set up Datadog Real User Monitoring for frontend applications (React, Vue, Next.js, Vanilla JS)",
+      "version": "0.1.0"
+    },
+    {
+      "name": "android-instrumentation",
+      "source": "./android-instrumentation",
+      "description": "Instrument Android applications with Datadog RUM and APM",
+      "version": "0.1.0"
+    },
+    {
+      "name": "ios-instrumentation",
+      "source": "./ios-instrumentation",
+      "description": "Instrument iOS/Swift applications with Datadog RUM and APM",
       "version": "0.1.0"
     },
     {
