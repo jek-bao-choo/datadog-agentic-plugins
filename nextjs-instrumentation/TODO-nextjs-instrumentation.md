@@ -68,6 +68,15 @@ Before starting either phase, check if a matching skill already exists under `sk
 ---
 
 
+
+## Datadog Credentials
+
+Before sending any telemetry to Datadog, confirm these with the user:
+
+- **Datadog Site (DD_SITE):** Ask which Datadog site the prospect uses. Do NOT assume `datadoghq.com`. Options: `datadoghq.com` (US1), `us3.datadoghq.com` (US3), `us5.datadoghq.com` (US5), `datadoghq.eu` (EU1), `ap1.datadoghq.com` (AP1), `ap2.datadoghq.com` (AP2), `ddog-gov.com` (US1-FED). Reference: https://docs.datadoghq.com/getting_started/site/
+- **API Key (DD_API_KEY):** Required for all telemetry submission (metrics, traces, logs). Ask if not already provided. Store in `.env` file, never hardcode.
+- **Application Key (DD_APP_KEY):** Required only if connecting to Datadog MCP server or using the Datadog API for read operations (e.g., querying metrics, listing monitors). Not needed for basic telemetry submission.
+
 ## Resource Naming Convention
 
 All resources created in this plugin use the **"jek-"** prefix for easy identification in shared environments.
