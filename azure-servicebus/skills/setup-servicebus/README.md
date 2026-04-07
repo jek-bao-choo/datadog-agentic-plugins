@@ -84,7 +84,34 @@ In Datadog (wait ~5 min): **Metrics > Explorer** → search `azure.servicebus`.
 
 ## Teardown
 
+### 1. Delete Azure resources
+
 ```bash
+# Delete resource group (namespace + queue + SAS policy all deleted together)
 az group delete --name jek-rg-servicebus --yes --no-wait
-az ad app delete --id $APP_ID  # optional
+```
+
+> `--no-wait` means deletion continues in the background. Verify with: `az group show --name jek-rg-servicebus 2>&1 | grep "not found"` (should say "not found" when complete).
+
+### 2. Delete Datadog App Registration (optional)
+
+Only delete if you won't reuse this integration for other Azure PoCs:
+
+```bash
+# If $APP_ID is no longer in your shell, find it:
+az ad app list --display-name "jek-datadog-integration" --query "[0].appId" -o tsv
+
+# Delete
+az ad app delete --id <APP_ID>
+```
+
+### 3. Remove Datadog Azure integration (optional)
+
+If this was the only Azure resource being monitored:
+- Go to **Integrations > Azure** in Datadog → click the tenant → **Remove Integration**
+
+### 4. Clean up local files
+
+```bash
+rm -f .env  # contains connection string
 ```

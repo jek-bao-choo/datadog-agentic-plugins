@@ -180,10 +180,33 @@ az ad sp show --id $APP_ID --query appId -o tsv
 
 ## Teardown
 
-```bash
-# Delete Service Bus resources
-az group delete --name jek-rg-servicebus --yes --no-wait
+### 1. Delete Azure resources
 
-# Delete Datadog App Registration (optional — can reuse for other PoCs)
-az ad app delete --id $APP_ID
+```bash
+# Delete resource group (namespace + queue + SAS policy all deleted)
+az group delete --name jek-rg-servicebus --yes --no-wait
+```
+
+> `--no-wait` means deletion continues in background. Verify completion:
+> `az group show --name jek-rg-servicebus 2>&1 | grep "not found"`
+
+### 2. Delete Datadog App Registration (optional — reusable for other PoCs)
+
+```bash
+# Find the App ID if no longer in your shell
+az ad app list --display-name "jek-datadog-integration" --query "[0].appId" -o tsv
+
+# Delete
+az ad app delete --id <APP_ID>
+```
+
+### 3. Remove Datadog Azure integration (optional)
+
+If no other Azure resources are monitored:
+- **Integrations > Azure** in Datadog → click the tenant → **Remove Integration**
+
+### 4. Clean up local files
+
+```bash
+rm -f .env  # contains connection string — do not leave on disk
 ```

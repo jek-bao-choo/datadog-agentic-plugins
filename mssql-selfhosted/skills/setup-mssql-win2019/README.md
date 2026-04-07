@@ -120,7 +120,27 @@ Expected: `sqlserver [OK]` with metrics and DBM metadata.
 
 ## Teardown
 
+### 1. Destroy AWS infrastructure
+
 ```bash
 cd scripts/
 terraform destroy
+```
+
+> Takes ~5 minutes for Windows EC2 instances. Confirm with `yes` when prompted.
+
+### 2. Clean up Datadog
+
+- **Infrastructure > Host Map** → `jek-mssql-win2019` will age out ~2 hours after host is terminated
+- **Database Monitoring** → `jek-database-pgw` stops showing new data after termination
+
+### 3. Clean up local files
+
+```bash
+# Delete temp decrypted key if it still exists
+rm -f /tmp/jek_tmp.pem
+
+# Remove terraform state (optional — already gitignored)
+rm -f scripts/terraform.tfstate scripts/terraform.tfstate.backup
+rm -rf scripts/.terraform/
 ```

@@ -251,3 +251,19 @@ In Datadog UI:
 - `references/setup-dbm-user.sql` — Create Datadog DBM monitoring user
 - `references/datadog-sqlserver.yaml` — Agent SQL Server integration config (original template)
 - `references/install-dd-agent.ps1` — Install Datadog Agent on Windows
+
+## Teardown
+
+```bash
+# 1. Destroy EC2 instance and all AWS resources
+cd scripts/
+terraform destroy
+# Takes ~5 minutes for Windows instances. Confirm with 'yes'.
+
+# 2. Clean up local temp files
+rm -f /tmp/jek_tmp.pem
+```
+
+Datadog cleanup:
+- **Infrastructure > Host Map** → `jek-mssql-win2019` ages out ~2 hours after termination
+- **Database Monitoring** → `jek-database-pgw` stops receiving new data automatically
