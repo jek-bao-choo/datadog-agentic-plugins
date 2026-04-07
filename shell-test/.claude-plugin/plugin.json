@@ -1,0 +1,5 @@
+{
+  "name": "shell-test",
+  "description": "Send test traces, logs, and events to Datadog via bash/curl scripts for telemetry validation.",
+  "version": "0.1.0"
+}

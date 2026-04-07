@@ -164,6 +164,12 @@
       "version": "0.1.0"
     },
     {
+      "name": "shell-test",
+      "source": "./shell-test",
+      "description": "Send test traces, logs, and events to Datadog via bash/curl scripts",
+      "version": "0.1.0"
+    },
+    {
       "name": "cloudprem-selfhosted",
       "source": "./cloudprem-selfhosted",
       "description": "Set up Datadog Cloud-Prem Observability Pipelines and S3-compatible storage locally",
