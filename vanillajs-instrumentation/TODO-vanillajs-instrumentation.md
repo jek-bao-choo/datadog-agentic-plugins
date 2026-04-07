@@ -64,6 +64,26 @@ Before starting either phase, check if a matching skill already exists under `sk
 
 ---
 
+
+## Resource Naming Convention
+
+All resources created in this plugin use the **"jek-"** prefix for easy identification in shared environments.
+
+| Resource Type | Convention | Examples |
+|---|---|---|
+| HTTP endpoints | `jek-endpoint-{method}` | `jek-endpoint-get`, `jek-endpoint-post`, `jek-endpoint-put` |
+| Message queues | `jek-queue` | `jek-queue`, `jek-queue-orders` |
+| Database name | `jek-database` | `jek-database`, `jek-database-master`, `jek-database-slave` |
+| Database tables | `jek-table` | `jek-table`, `jek-table-users` |
+| Infra resources | `jek-{resource}` | `jek-vpc`, `jek-eks-cluster`, `jek-ec2-master` |
+| Services (DD_SERVICE) | `jek-{app-name}` | `jek-springboot-app`, `jek-fastapi-gateway` |
+| Cloud tags | `owner="jek"`, `env="test"` | — |
+| gRPC services | `jek-grpc-{service}` | `jek-grpc-orders`, `jek-grpc-payments` |
+| WebSocket endpoints | `jek-ws-{purpose}` | `jek-ws-chat`, `jek-ws-notifications` |
+| GraphQL endpoints | `jek-graphql` | `jek-graphql` (single endpoint by convention) |
+| Event streams | `jek-stream-{name}` | `jek-stream-orders`, `jek-stream-events` |
+| Other protocols | `jek-{protocol}-{name}` | `jek-rpc-auth`, `jek-mqtt-sensor` |
+
 ## Tools & References
 
 ### MCP Libraries (Context7)
