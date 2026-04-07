@@ -1,0 +1,42 @@
+# datadog-sqlserver.yaml — Datadog Agent SQL Server integration config
+# Copy to: C:\ProgramData\Datadog\conf.d\sqlserver.d\conf.yaml
+# Reference: https://docs.datadoghq.com/database_monitoring/setup_sql_server/selfhosted/
+#
+# IMPORTANT: Use the ODBC connector (not adodbapi) for named instances like SQLEXPRESS.
+# The adodbapi connector with MSOLEDBSQL may fail with "Provider cannot be found" or
+# TCP connection errors on named instances.
+#
+# IMPORTANT: If saving from Notepad, remove the UTF-8 BOM afterwards:
+# $c = Get-Content conf.yaml -Raw
+# [System.IO.File]::WriteAllText("conf.yaml", $c, (New-Object System.Text.UTF8Encoding $false))
+
+init_config:
+
+instances:
+  - host: localhost\SQLEXPRESS
+    username: datadog
+    password: "CHANGE_ME_DD_DBM_PASSWORD"
+    connector: odbc
+    driver: "{ODBC Driver 17 for SQL Server}"
+    database: jek-database-pgw
+
+    # Enable Database Monitoring
+    dbm: true
+
+    # Query metrics from sys.dm_exec_query_stats
+    collect_settings:
+      enabled: true
+
+    # Query samples and explain plans
+    query_samples:
+      enabled: true
+
+    # Query activity (currently executing queries)
+    query_activity:
+      enabled: true
+
+    # Tags for filtering in Datadog UI
+    tags:
+      - "env:sandbox"
+      - "service:jek-mssql-pgw"
+      - "team:jek"
