@@ -1,10 +1,9 @@
 ---
 name: sandbox-setup
 description: >
-  Initialise sandbox environments for Datadog testing, migration,
-  and telemetry validation. Covers Splunk Enterprise, LiteLLM Gateway,
-  Datadog Agent (APM/DogStatsD), OTel Collector, Cloud-Prem pipelines,
-  and test telemetry scripts.
+  Initialise sandbox environments for Datadog testing and telemetry
+  validation. Covers LiteLLM Gateway, Datadog Agent (APM/DogStatsD),
+  OTel Collector, Cloud-Prem pipelines, and test telemetry scripts.
 category: infrastructure
 requires: []
 supported_versions: {}
@@ -12,7 +11,7 @@ supported_versions: {}
 
 ## Overview
 
-The sandbox-setup plugin provides skills for setting up auxiliary sandbox environments used during Datadog PoC engagements. Covers third-party tools (Splunk, LiteLLM), Datadog Agent configurations (APM, DogStatsD), OpenTelemetry Collector, Cloud-Prem observability pipelines, and test telemetry scripts for traces, events, and logs.
+The sandbox-setup plugin provides skills for setting up auxiliary sandbox environments used during Datadog PoC engagements. Covers LiteLLM Gateway, Datadog Agent configurations (APM, DogStatsD), OpenTelemetry Collector, Cloud-Prem observability pipelines, and test telemetry scripts for traces, events, and logs. (Splunk Enterprise has been moved to the `splunk-selfhosted` plugin.)
 
 ## Prerequisites
 
@@ -22,9 +21,6 @@ The sandbox-setup plugin provides skills for setting up auxiliary sandbox enviro
 - GCP project (for LiteLLM Gateway only)
 
 ## Skills
-
-### initialising-splunk-enterprise
-Stand up a local Splunk Enterprise with Universal Forwarder using Docker Compose. Send test data, verify indexing, export via REST API.
 
 ### initialising-litellm-gateway
 Deploy a LiteLLM Gateway on GCP Cloud Run for budget-controlled access to Anthropic Claude models.
@@ -57,8 +53,7 @@ Skills are independent — use whichever matches the testing need:
 2. `sending-test-*` — to validate telemetry ingestion
 3. `running-otel-collector` — for OTel pipeline testing
 4. `running-cloudprem` — for observability pipeline testing
-5. `initialising-splunk-enterprise` — for Splunk migration testing
-6. `initialising-litellm-gateway` — for Claude API budget management
+5. `initialising-litellm-gateway` — for Claude API budget management
 
 ## Compatibility Notes
 

@@ -1,0 +1,5 @@
+{
+  "name": "splunk-selfhosted",
+  "description": "Set up a self-hosted Splunk Enterprise environment with Universal Forwarder for Datadog log migration testing.",
+  "version": "0.1.0"
+}

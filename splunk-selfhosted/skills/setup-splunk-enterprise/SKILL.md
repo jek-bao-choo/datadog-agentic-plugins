@@ -1,5 +1,5 @@
 ---
-name: initialising-splunk-enterprise
+name: setup-splunk-enterprise
 description: Set up and operate a Splunk Enterprise sandbox with a Universal Forwarder using Docker Compose. Use this skill whenever the user wants to spin up Splunk locally, ingest logs via a Universal Forwarder, query indexed data through the Splunk REST API, or export Splunk events to JSON files. Also use it when the user mentions Splunk docker setup, forwarding logs to Splunk, Splunk search export, the Splunk management API on port 8089, or chunked data export from Splunk — even if they don't explicitly say "sandbox" or "initialise".
 ---
 

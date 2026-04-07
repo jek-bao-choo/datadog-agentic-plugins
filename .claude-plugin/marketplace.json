@@ -158,6 +158,12 @@
       "version": "0.1.0"
     },
     {
+      "name": "splunk-selfhosted",
+      "source": "./splunk-selfhosted",
+      "description": "Set up self-hosted Splunk Enterprise for Datadog log migration testing",
+      "version": "0.1.0"
+    },
+    {
       "name": "sandbox-setup",
       "source": "./sandbox-setup",
       "description": "Initialise sandbox environments for Datadog testing",
