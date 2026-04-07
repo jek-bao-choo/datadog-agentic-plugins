@@ -1,0 +1,5 @@
+{
+  "name": "cloudprem-selfhosted",
+  "description": "Set up Datadog Cloud-Prem (Observability Pipelines) and S3-compatible storage locally for log routing and pipeline testing.",
+  "version": "0.1.0"
+}

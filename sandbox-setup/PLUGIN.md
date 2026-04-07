@@ -3,7 +3,7 @@ name: sandbox-setup
 description: >
   Initialise sandbox environments for Datadog testing and telemetry
   validation. Covers LiteLLM Gateway, Datadog Agent (APM/DogStatsD),
-  OTel Collector, Cloud-Prem pipelines, and test telemetry scripts.
+  OTel Collector, and test telemetry scripts.
 category: infrastructure
 requires: []
 supported_versions: {}
@@ -11,7 +11,7 @@ supported_versions: {}
 
 ## Overview
 
-The sandbox-setup plugin provides skills for setting up auxiliary sandbox environments used during Datadog PoC engagements. Covers LiteLLM Gateway, Datadog Agent configurations (APM, DogStatsD), OpenTelemetry Collector, Cloud-Prem observability pipelines, and test telemetry scripts for traces, events, and logs. (Splunk Enterprise has been moved to the `splunk-selfhosted` plugin.)
+The sandbox-setup plugin provides skills for setting up auxiliary sandbox environments used during Datadog PoC engagements. Covers LiteLLM Gateway, Datadog Agent configurations (APM, DogStatsD), OpenTelemetry Collector, and test telemetry scripts for traces, events, and logs. (Splunk Enterprise moved to `splunk-selfhosted`. Cloud-Prem and Scality moved to `cloudprem-selfhosted`.)
 
 ## Prerequisites
 
@@ -43,17 +43,13 @@ Run the Datadog Agent with DogStatsD and test custom metrics/events submission w
 ### running-otel-collector
 Run an OpenTelemetry Collector via Docker Compose that receives OTLP traces and exports to Datadog.
 
-### running-cloudprem
-Run Datadog Cloud-Prem (observability pipelines) locally with Docker Compose. Two renditions with different pipeline configurations.
-
 ## Recommended Skill Order
 
 Skills are independent — use whichever matches the testing need:
 1. `running-dd-agent-apm` — if you need a local Datadog Agent for APM
 2. `sending-test-*` — to validate telemetry ingestion
 3. `running-otel-collector` — for OTel pipeline testing
-4. `running-cloudprem` — for observability pipeline testing
-5. `initialising-litellm-gateway` — for Claude API budget management
+4. `initialising-litellm-gateway` — for Claude API budget management
 
 ## Compatibility Notes
 

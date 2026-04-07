@@ -126,7 +126,8 @@ Where the prospect's workloads run. This is the foundation layer of any PoC stac
 | `azure-vm` | Windows Server VMs on Azure via Bicep |
 | `openshift-onprem` | Azure Red Hat OpenShift with Datadog Operator/DDOT |
 | `splunk-selfhosted` | Self-hosted Splunk Enterprise for log migration testing |
-| `sandbox-setup` | Sandbox environments — LiteLLM, Docker Agent, OTel Collector, Cloud-Prem |
+| `cloudprem-selfhosted` | Datadog Cloud-Prem Observability Pipelines + Scality S3 storage |
+| `sandbox-setup` | Sandbox environments — LiteLLM, Docker Agent, OTel Collector |
 
 **Dependency rule:** Infrastructure plugins have no `requires:` — they are the base layer.
 
@@ -229,13 +230,15 @@ datadog-agentic-plugins/
   splunk-selfhosted/               # Splunk Enterprise + Universal Forwarder (Docker)
     skills/setup-splunk-enterprise/
 
-  sandbox-setup/                   # LiteLLM, Docker Agent, OTel, Cloud-Prem
+  cloudprem-selfhosted/            # Cloud-Prem Observability Pipelines + Scality S3
+    skills/running-cloudprem/
+    skills/running-scality-docker/
+
+  sandbox-setup/                   # LiteLLM, Docker Agent, OTel
     skills/initialising-litellm-gateway/
     skills/running-dd-agent-apm/
     skills/running-dd-dogstatsd/
     skills/running-otel-collector/
-    skills/running-cloudprem/
-    skills/running-scality-docker/
     skills/sending-test-traces/
     skills/sending-test-events/
     skills/sending-test-logs/
