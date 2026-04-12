@@ -4,6 +4,91 @@ Step-by-step guide to install the OpenTelemetry Collector Contrib on CentOS Stre
 
 Two exporter options are available. Choose one in Step 3.
 
+## Architecture
+
+### Option B: Datadog Exporter — Comprehensive
+
+The [Datadog Connector](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector) computes APM stats (latency distributions, error rates, requests/s) from traces *before* export. These stats power the APM service page, service map edge metrics, and latency histograms. The `datadog/exporter` handles all 3 signals through a single exporter, manages metrics temporality automatically, and provides built-in `sending_queue` for durable batching.
+
+```
+┌───────────────────────── OTel Collector Contrib ─────────────────────────────┐
+│                                                                              │
+│  Extensions: health_check (:13133) | file_storage | datadog (Fleet Mgmt)    │
+│                                                                              │
+│  TRACES ─────────────────────────────────────────────────────────────────    │
+│  otlp (:4317/4318) ──→ resourcedetection ──→ datadog/connector ─┐           │
+│                                                                   │ traces   │
+│                                              ┌────────────────────┘           │
+│                                              ↓                               │
+│                                  datadog/exporter ──────→ Datadog APM        │
+│                                  debug                                       │
+│                                              │ APM stats (metrics)           │
+│  METRICS ────────────────────────────────────┼───────────────────────────    │
+│  otlp (:4317/4318) ──┐                      ↓                               │
+│  hostmetrics ─────────┼→ resourcedetection ──→ datadog/exporter ──→ Datadog  │
+│  datadog/connector ───┘                                            Metrics   │
+│                                                                              │
+│  LOGS ───────────────────────────────────────────────────────────────────    │
+│  otlp (:4317/4318) ──┐                                                      │
+│  filelog/system ──────┼→ resourcedetection ──→ datadog/exporter ──→ Datadog  │
+│                       ┘                                            Logs      │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Option A: OTLP HTTP Exporter — Comprehensive
+
+Sends standard OTLP to Datadog's ingest endpoints (`otlp.datadoghq.com`) — vendor-neutral with no Datadog-specific components in the export path. Uses 3 separate named exporters (one per signal) with signal-specific headers. Requires `cumulativetodelta` processor because Datadog OTLP ingest only accepts delta metrics. No connector needed — Datadog's OTLP ingest computes APM stats server-side.
+
+```
+┌───────────────────────── OTel Collector Contrib ─────────────────────────────┐
+│                                                                              │
+│  Extensions: health_check (:13133) | file_storage | datadog (Fleet Mgmt)    │
+│                                                                              │
+│  TRACES ─────────────────────────────────────────────────────────────────    │
+│  otlp (:4317/4318) ──→ resourcedetection ──→ otlphttp/dd_traces ──→ Datadog │
+│                                              debug                   APM     │
+│                                                                              │
+│  METRICS ────────────────────────────────────────────────────────────────    │
+│  otlp (:4317/4318) ──┐                                                      │
+│  hostmetrics ─────────┼→ resourcedetection ──→ cumulativetodelta             │
+│                       ┘          ──→ otlphttp/dd_metrics ──→ Datadog Metrics │
+│                                                                              │
+│  LOGS ───────────────────────────────────────────────────────────────────    │
+│  otlp (:4317/4318) ──┐                                                      │
+│  filelog/system ──────┼→ resourcedetection ──→ otlphttp/dd_logs ──→ Datadog  │
+│                       ┘                                            Logs      │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key differences
+
+| Aspect | Datadog Exporter (Option B) | OTLP HTTP Exporter (Option A) |
+|---|---|---|
+| APM stats | Computed locally by `datadog/connector` before export | Computed server-side by Datadog OTLP ingest |
+| Metrics temporality | Handled automatically by exporter | Requires `cumulativetodelta` processor |
+| Exporters | 1 exporter for all signals | 3 separate exporters (traces, metrics, logs) |
+| Batching | Built-in `sending_queue` | Standard OTLP HTTP batching |
+| Vendor neutrality | Datadog-specific components | Standard OTLP protocol only |
+| Hostname/tags | Set in exporter + extension | Set in extension only |
+
+Both options share the same receivers (`otlp`, `hostmetrics`, `filelog/system`), the `resourcedetection` processor, and the `datadog` extension for Fleet Automation.
+
+### Simplified view — Datadog Exporter (Option B)
+
+```
+TRACES:   otlp ──→ resourcedetection ──→ datadog/connector ──→ datadog/exporter ──→ Datadog
+METRICS:  otlp + hostmetrics + connector stats ──→ resourcedetection ──→ datadog/exporter ──→ Datadog
+LOGS:     otlp + filelog ──→ resourcedetection ──→ datadog/exporter ──→ Datadog
+```
+
+### Simplified view — OTLP HTTP Exporter (Option A)
+
+```
+TRACES:   otlp ──→ resourcedetection ──→ otlphttp/dd_traces ──→ Datadog
+METRICS:  otlp + hostmetrics ──→ resourcedetection ──→ cumulativetodelta ──→ otlphttp/dd_metrics ──→ Datadog
+LOGS:     otlp + filelog ──→ resourcedetection ──→ otlphttp/dd_logs ──→ Datadog
+```
+
 ## Prerequisites
 
 Before starting, make sure you have:
