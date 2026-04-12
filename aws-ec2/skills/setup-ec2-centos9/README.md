@@ -10,15 +10,17 @@ CentOS Stream 9 EC2 instance with Java 17 and Maven for PoC environments.
 
 ## Tech Stack
 
-| Component | Version |
+| Component | Confirmed Version |
 |---|---|
-| OS | CentOS Stream 9 (AMI owner: 125523088429) |
+| OS | CentOS Stream release 9 (AMI owner: 125523088429) |
+| Kernel | 5.14.0-689.el9.x86_64 |
 | SSH user | `ec2-user` |
 | Instance | t3.large (2 vCPU, 8GB RAM) |
 | Storage | 30GB gp3 (encrypted) |
 | Region | ap-southeast-1 |
-| Java | OpenJDK 17 (via user_data) |
-| Maven | 3.6.3+ (via user_data) |
+| Java | OpenJDK 17.0.18 2026-01-20 LTS |
+| Maven | Apache Maven 3.6.3 (Red Hat 3.6.3-23) |
+| Git | 2.52.0 |
 
 ## Quick Start
 

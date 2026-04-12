@@ -89,6 +89,21 @@ METRICS:  otlp + hostmetrics ──→ resourcedetection ──→ cumulativetod
 LOGS:     otlp + filelog ──→ resourcedetection ──→ otlphttp/dd_logs ──→ Datadog
 ```
 
+## Tech Stack
+
+| Component | Confirmed Version |
+|---|---|
+| OTel Collector | otelcol-contrib 0.149.0 |
+| Datadog Exporter | `datadog/exporter` (native, included in otelcol-contrib) |
+| Datadog Connector | `datadog/connector` (APM stats, included in otelcol-contrib) |
+| Datadog Extension | `datadog` (Fleet Automation, included in otelcol-contrib) |
+| OTLP HTTP Exporter | `otlphttp` (vendor-neutral alternative, included in otelcol-contrib) |
+| DD_SITE | datadoghq.com (US1) |
+| OTLP gRPC port | 4317 |
+| OTLP HTTP port | 4318 |
+| Health check port | 13133 |
+| Host OS | CentOS Stream release 9 |
+
 ## Prerequisites
 
 Before starting, make sure you have:
