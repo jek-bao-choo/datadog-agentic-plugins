@@ -47,56 +47,51 @@ processors:
         os.type:
           enabled: true
 
-  # Convert cumulative metrics to delta (Datadog OTLP ingest requires delta temporality)
+  # Convert cumulative metrics to delta (only needed for OTLP HTTP exporter option)
   cumulativetodelta:
 
 exporters:
   # =========================================================================
-  # EXPERIMENT: Using OTLP HTTP exporters to Datadog's OTLP ingest endpoints
-  # instead of the native datadog/exporter.
+  # ACTIVE: Native Datadog exporter (full-fidelity service map, trace metrics)
   # =========================================================================
-
-  # Traces — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/
-  otlphttp/dd_traces:
-    traces_endpoint: "https://otlp.datadoghq.com/v1/traces"
-    headers:
-      dd-api-key: ${env:DD_API_KEY}
-      dd-otlp-source: "datadog"
-
-  # Metrics — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/metrics.md
-  otlphttp/dd_metrics:
-    metrics_endpoint: "https://otlp.datadoghq.com/v1/metrics"
-    headers:
-      dd-api-key: ${env:DD_API_KEY}
-      dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
-
-  # Logs — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/logs.md
-  otlphttp/dd_logs:
-    logs_endpoint: "https://otlp.datadoghq.com/v1/logs"
-    headers:
-      dd-api-key: ${env:DD_API_KEY}
+  datadog/exporter:
+    hostname: "jek-ec2-centos9"
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 1000
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    traces:
+      span_name_as_resource_name: true
+    host_metadata:
+      enabled: true
+      hostname_source: config_or_system
+      tags:
+        - env:sandbox
+        - owner:jek
 
   # =========================================================================
-  # COMMENTED OUT: Native Datadog exporter (restore by uncommenting below
-  # and switching pipeline exporters back to datadog/exporter)
+  # COMMENTED OUT: OTLP HTTP exporters (restore by uncommenting below
+  # and switching pipeline exporters to otlphttp/dd_*)
   # =========================================================================
-  # datadog/exporter:
-  #   hostname: "jek-ec2-centos9"
-  #   sending_queue:
-  #     enabled: true
-  #     num_consumers: 10
-  #     queue_size: 1000
-  #   api:
-  #     key: ${env:DD_API_KEY}
-  #     site: datadoghq.com
-  #   traces:
-  #     span_name_as_resource_name: true
-  #   host_metadata:
-  #     enabled: true
-  #     hostname_source: config_or_system
-  #     tags:
-  #       - env:sandbox
-  #       - owner:jek
+  # otlphttp/dd_traces:
+  #   traces_endpoint: "https://otlp.datadoghq.com/v1/traces"
+  #   headers:
+  #     dd-api-key: ${env:DD_API_KEY}
+  #     dd-otlp-source: "datadog"
+  #
+  # otlphttp/dd_metrics:
+  #   metrics_endpoint: "https://otlp.datadoghq.com/v1/metrics"
+  #   headers:
+  #     dd-api-key: ${env:DD_API_KEY}
+  #     dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
+  #
+  # otlphttp/dd_logs:
+  #   logs_endpoint: "https://otlp.datadoghq.com/v1/logs"
+  #   headers:
+  #     dd-api-key: ${env:DD_API_KEY}
 
   # Debug exporter — for troubleshooting during setup
   debug:
@@ -121,16 +116,16 @@ service:
     traces:
       receivers: [otlp]
       processors: [resourcedetection]
-      # exporters: [datadog/exporter, debug] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
-      exporters: [otlphttp/dd_traces, debug]
+      exporters: [datadog/exporter, debug]
+      # exporters: [otlphttp/dd_traces, debug]  # OTLP HTTP option
     metrics:
       receivers: [otlp, hostmetrics]
-      # processors: [resourcedetection] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
-      # exporters: [datadog/exporter] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
-      processors: [resourcedetection, cumulativetodelta]
-      exporters: [otlphttp/dd_metrics]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter]
+      # processors: [resourcedetection, cumulativetodelta]  # OTLP HTTP option
+      # exporters: [otlphttp/dd_metrics]                    # OTLP HTTP option
     logs:
       receivers: [otlp, filelog/system]
       processors: [resourcedetection]
-      # exporters: [datadog/exporter] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
-      exporters: [otlphttp/dd_logs]
+      exporters: [datadog/exporter]
+      # exporters: [otlphttp/dd_logs]  # OTLP HTTP option
