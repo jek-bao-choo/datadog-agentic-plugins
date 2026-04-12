@@ -37,10 +37,6 @@ receivers:
           layout: '%b %d %H:%M:%S'
 
 processors:
-  batch:
-    send_batch_size: 1000
-    timeout: 10s
-
   resourcedetection:
     detectors: [system, env]
     system:
@@ -53,8 +49,13 @@ processors:
 
 exporters:
   # Native Datadog exporter — full-fidelity (service map, trace metrics, host metadata)
-  datadog:
+  # Named datadog/exporter to disambiguate from the datadog extension
+  datadog/exporter:
     hostname: "jek-ec2-centos9"
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 1000
     api:
       key: ${env:DD_API_KEY}
       site: datadoghq.com
@@ -76,19 +77,26 @@ extensions:
     endpoint: 0.0.0.0:13133
   file_storage:
     directory: /var/lib/otelcol-contrib/storage
+  # Datadog extension — makes collector visible in Datadog Infrastructure and Fleet Automation
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    hostname: "jek-ec2-centos9"
 
 service:
-  extensions: [health_check, file_storage]
+  extensions: [health_check, file_storage, datadog]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [resourcedetection, batch]
-      exporters: [datadog, debug]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter, debug]
     metrics:
       receivers: [otlp, hostmetrics]
-      processors: [resourcedetection, batch]
-      exporters: [datadog]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter]
     logs:
       receivers: [otlp, filelog/system]
-      processors: [resourcedetection, batch]
-      exporters: [datadog]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter]

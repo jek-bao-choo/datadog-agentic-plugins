@@ -84,10 +84,6 @@ receivers:
           layout: '%b %d %H:%M:%S'
 
 processors:
-  batch:
-    send_batch_size: 1000
-    timeout: 10s
-
   resourcedetection:
     detectors: [system, env]
     system:
@@ -100,8 +96,13 @@ processors:
 
 exporters:
   # Native Datadog exporter — full-fidelity (service map, trace metrics, host metadata)
-  datadog:
+  # Named datadog/exporter to disambiguate from the datadog extension
+  datadog/exporter:
     hostname: "jek-ec2-centos9"
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 1000
     api:
       key: ${env:DD_API_KEY}
       site: datadoghq.com
@@ -123,22 +124,29 @@ extensions:
     endpoint: 0.0.0.0:13133
   file_storage:
     directory: /var/lib/otelcol-contrib/storage
+  # Datadog extension — makes collector visible in Datadog Infrastructure and Fleet Automation
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    hostname: "jek-ec2-centos9"
 
 service:
-  extensions: [health_check, file_storage]
+  extensions: [health_check, file_storage, datadog]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [resourcedetection, batch]
-      exporters: [datadog, debug]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter, debug]
     metrics:
       receivers: [otlp, hostmetrics]
-      processors: [resourcedetection, batch]
-      exporters: [datadog]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter]
     logs:
       receivers: [otlp, filelog/system]
-      processors: [resourcedetection, batch]
-      exporters: [datadog]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter]
 EOF
 ```
 
@@ -146,21 +154,23 @@ EOF
 
 | Section | Purpose |
 |---|---|
-| `datadog.hostname` | Sets the hostname shown in Datadog (default is EC2 instance ID which is not human-readable) |
-| `datadog.host_metadata.tags` | Adds tags like `env:sandbox` and `owner:jek` to the host in Datadog |
+| `datadog/exporter.hostname` | Sets the hostname shown in Datadog (default is EC2 instance ID which is not human-readable) |
+| `datadog/exporter.host_metadata.tags` | Adds tags like `env:sandbox` and `owner:jek` to the host in Datadog |
 | `otlp` receiver | Receives traces, metrics, logs from Java apps via OTel Java agent (ports 4317/4318) |
 | `hostmetrics` receiver | Collects CPU, memory, disk, network metrics from the host (replaces Datadog Agent) |
 | `filelog/system` receiver | Reads system logs from `/var/log/messages` and `/var/log/secure` |
-| `datadog` exporter | Sends all telemetry to Datadog US1 using your API key |
+| `datadog/exporter` exporter | Sends all telemetry to Datadog US1 using your API key. Named `datadog/exporter` to disambiguate from the `datadog` extension. Has built-in batching via `sending_queue` — no separate batch processor needed. See: [Sunset of the OTel Batch Processor](https://github.com/open-telemetry/opentelemetry.io/pull/9088), [Move batching to exporters](https://github.com/open-telemetry/opentelemetry-collector/issues/8122) |
+| `datadog/exporter.sending_queue` | Exporter-level batching and queuing. Replaces the deprecated batch processor with better durability during collector restarts |
 | `debug` exporter | Prints trace info to collector logs for troubleshooting |
+| `datadog` extension | Makes collector config and build info visible in Datadog Infrastructure and [Fleet Automation](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md). Hostname must match the exporter's hostname |
 
 ### To customize hostname and tags
 
-Edit the `datadog` exporter section in the config:
+Edit the `datadog/exporter` section in the config:
 
 ```yaml
 exporters:
-  datadog:
+  datadog/exporter:
     hostname: "your-custom-hostname"    # Change this
     host_metadata:
       tags:
@@ -308,7 +318,7 @@ sudo journalctl -u otelcol-contrib -n 50 --no-pager
 
 ### Hostname shows as EC2 instance ID instead of custom name
 
-- Check `hostname` is set in the `datadog` exporter section of config.yaml
+- Check `hostname` is set in the `datadog/exporter` section of config.yaml
 - Restart: `sudo systemctl restart otelcol-contrib`
 - Wait 5-10 minutes for host metadata to update in Datadog
 

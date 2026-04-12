@@ -3,9 +3,9 @@ name: install-otelcol-contrib
 description: >-
   Install the OpenTelemetry Collector Contrib on an EC2 instance as a systemd service.
   Configures OTLP receivers (gRPC 4317, HTTP 4318), hostmetrics receiver, filelog receiver
-  for system logs, and the native Datadog exporter for traces, metrics, and logs. Replaces
-  the Datadog Agent entirely — all telemetry flows through OTel. Includes custom hostname
-  and tags configuration.
+  for system logs, native Datadog exporter for traces/metrics/logs, and the Datadog extension
+  for Fleet Automation visibility. Replaces the Datadog Agent entirely — all telemetry flows
+  through OTel. Includes custom hostname and tags configuration.
 version: 0.1.0
 version_matrix:
   otelcol-contrib: ["0.149.0"]
@@ -26,9 +26,11 @@ Install and configure the OpenTelemetry Collector Contrib as a systemd service o
 
 | Pipeline | Receivers | Processors | Exporters |
 |---|---|---|---|
-| Traces | OTLP (gRPC 4317, HTTP 4318) | resourcedetection, batch | datadog, debug |
-| Metrics | OTLP + hostmetrics (CPU, disk, memory, network, load) | resourcedetection, batch | datadog |
-| Logs | OTLP + filelog/system (/var/log/messages, /var/log/secure) | resourcedetection, batch | datadog |
+| Traces | OTLP (gRPC 4317, HTTP 4318) | resourcedetection | datadog/exporter, debug |
+| Metrics | OTLP + hostmetrics (CPU, disk, memory, network, load) | resourcedetection | datadog/exporter |
+| Logs | OTLP + filelog/system (/var/log/messages, /var/log/secure) | resourcedetection | datadog/exporter |
+
+No batch processor — the Datadog exporter's built-in `sending_queue` handles batching with better durability during collector restarts.
 
 ## Instructions
 
@@ -102,7 +104,7 @@ To change the hostname or tags, edit `/etc/otelcol-contrib/config.yaml`:
 
 ```yaml
 exporters:
-  datadog:
+  datadog/exporter:
     hostname: "your-hostname"       # Shows in Datadog Infrastructure
     host_metadata:
       tags:
@@ -119,7 +121,7 @@ Then restart: `sudo systemctl restart otelcol-contrib`
 | `at least one config flag must be provided` | Add `OTELCOL_OPTIONS="--config=/etc/otelcol-contrib/config.yaml"` to env file |
 | `API key validation failed` | Check DD_API_KEY in `/etc/otelcol-contrib/otelcol-contrib.conf` |
 | No logs in Datadog | Run `sudo setfacl -m u:otelcol-contrib:r /var/log/messages /var/log/secure` |
-| Hostname shows instance ID | Set `hostname` in datadog exporter config, restart, wait 5-10 min |
+| Hostname shows instance ID | Set `hostname` in `datadog/exporter` config, restart, wait 5-10 min |
 
 Full troubleshooting details in README.md.
 
