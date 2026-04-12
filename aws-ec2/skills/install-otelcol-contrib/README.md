@@ -394,11 +394,42 @@ curl -X POST http://localhost:4318/v1/traces \
 
 Expected: `{"partialSuccess":{}}`
 
-### 7c. Verify in Datadog (wait 1-2 minutes after sending)
+### 7c. Send a test log
+
+```bash
+curl -X POST http://localhost:4318/v1/logs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceLogs": [{
+      "resource": {
+        "attributes": [{
+          "key": "service.name",
+          "value": {"stringValue": "jek-otel-test"}
+        }]
+      },
+      "scopeLogs": [{
+        "logRecords": [{
+          "timeUnixNano": "1000000000",
+          "severityNumber": 9,
+          "severityText": "INFO",
+          "body": {"stringValue": "Test log from OTel Collector verify"},
+          "attributes": [{
+            "key": "log.source",
+            "value": {"stringValue": "manual-test"}
+          }]
+        }]
+      }]
+    }]
+  }'
+```
+
+Expected: `{"partialSuccess":{}}`
+
+### 7d. Verify in Datadog (wait 1-2 minutes after sending)
 
 1. **Traces**: Go to APM > Traces. Search for `service:jek-otel-test`. You should see the `test-span-verify` span with host `jek-ec2-centos9`.
 
-2. **Logs**: Go to Logs. Search for `host:jek-ec2-centos9`. You should see system log entries from `/var/log/messages` and `/var/log/secure`.
+2. **Logs**: Go to Logs. Search for `service:jek-otel-test`. You should see the test log message. Also search `host:jek-ec2-centos9` for system logs from `/var/log/messages` and `/var/log/secure`.
 
 3. **Host metrics**: Go to Infrastructure > Host Map. Find `jek-ec2-centos9`. The Host Info tab should show CPU, memory, filesystem metrics. Tags should show `env:sandbox` and `owner:jek`.
 
