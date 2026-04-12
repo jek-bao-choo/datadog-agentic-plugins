@@ -35,15 +35,16 @@ Install and configure the OpenTelemetry Collector Contrib as a systemd service o
 
 Uses standard OTLP protocol to send to Datadog's OTLP ingest endpoints (`otlp.datadoghq.com`). No Datadog-specific exporter component. Requires `cumulativetodelta` processor for metrics.
 
-### Option B: Datadog Exporter (native, full-fidelity)
+### Option B: Datadog Exporter + Connector (native, full-fidelity)
 
 | Pipeline | Receivers | Processors | Exporters |
 |---|---|---|---|
-| Traces | OTLP (gRPC 4317, HTTP 4318) | resourcedetection | datadog/exporter, debug |
-| Metrics | OTLP + hostmetrics | resourcedetection | datadog/exporter |
+| Traces | OTLP (gRPC 4317, HTTP 4318) | resourcedetection | datadog/connector |
+| Traces/2 | datadog/connector | — | datadog/exporter, debug |
+| Metrics | OTLP + hostmetrics + datadog/connector | resourcedetection | datadog/exporter |
 | Logs | OTLP + filelog/system | resourcedetection | datadog/exporter |
 
-Native Datadog exporter with built-in `sending_queue` for batching ([no batch processor needed](https://github.com/open-telemetry/opentelemetry.io/pull/9088)). Handles metrics temporality automatically. Named `datadog/exporter` to disambiguate from the `datadog` extension ([per Datadog docs](https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension.md)).
+Native Datadog exporter with built-in `sending_queue` for batching ([no batch processor needed](https://github.com/open-telemetry/opentelemetry.io/pull/9088)). The [Datadog Connector](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector) computes APM stats (latency, error rates, request counts) from traces before export. Handles metrics temporality automatically.
 
 Both options include the [Datadog extension](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md) for Fleet Automation visibility.
 

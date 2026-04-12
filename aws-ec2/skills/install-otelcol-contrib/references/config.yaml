@@ -50,6 +50,16 @@ processors:
   # Convert cumulative metrics to delta (only needed for OTLP HTTP exporter option)
   cumulativetodelta:
 
+# Datadog Connector — computes APM stats (latency, error rates, request counts) from traces.
+# Powers service map edge metrics, APM service page, and latency histograms.
+# https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector
+connectors:
+  datadog/connector:
+    traces:
+      span_name_as_resource_name: true
+      compute_stats_by_span_kind: true
+      peer_tags_aggregation: true
+
 exporters:
   # =========================================================================
   # ACTIVE: Native Datadog exporter (full-fidelity service map, trace metrics)
@@ -113,19 +123,25 @@ extensions:
 service:
   extensions: [health_check, file_storage, datadog]
   pipelines:
+    # Traces flow: otlp → resourcedetection → datadog/connector → datadog/exporter
+    # The connector computes APM stats before traces are exported.
     traces:
       receivers: [otlp]
       processors: [resourcedetection]
+      exporters: [datadog/connector]
+    traces/2:
+      receivers: [datadog/connector]
       exporters: [datadog/exporter, debug]
-      # exporters: [otlphttp/dd_traces, debug]  # OTLP HTTP option
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp, hostmetrics, datadog/connector]
       processors: [resourcedetection]
       exporters: [datadog/exporter]
-      # processors: [resourcedetection, cumulativetodelta]  # OTLP HTTP option
-      # exporters: [otlphttp/dd_metrics]                    # OTLP HTTP option
+      # OTLP HTTP option:
+      # processors: [resourcedetection, cumulativetodelta]
+      # exporters: [otlphttp/dd_metrics]
     logs:
       receivers: [otlp, filelog/system]
       processors: [resourcedetection]
       exporters: [datadog/exporter]
-      # exporters: [otlphttp/dd_logs]  # OTLP HTTP option
+      # OTLP HTTP option:
+      # exporters: [otlphttp/dd_logs]

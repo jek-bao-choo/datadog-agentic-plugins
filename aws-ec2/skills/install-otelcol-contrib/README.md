@@ -235,6 +235,15 @@ processors:
         os.type:
           enabled: true
 
+connectors:
+  # Datadog Connector — computes APM stats (latency, error rates, request counts) from traces
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector
+  datadog/connector:
+    traces:
+      span_name_as_resource_name: true
+      compute_stats_by_span_kind: true
+      peer_tags_aggregation: true
+
 exporters:
   # Named datadog/exporter to disambiguate from the datadog extension
   datadog/exporter:
@@ -272,12 +281,17 @@ extensions:
 service:
   extensions: [health_check, file_storage, datadog]
   pipelines:
+    # Traces flow through the connector first for APM stats computation,
+    # then continue to the exporter via a second traces pipeline.
     traces:
       receivers: [otlp]
       processors: [resourcedetection]
+      exporters: [datadog/connector]
+    traces/2:
+      receivers: [datadog/connector]
       exporters: [datadog/exporter, debug]
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp, hostmetrics, datadog/connector]
       processors: [resourcedetection]
       exporters: [datadog/exporter]
     logs:
@@ -288,6 +302,8 @@ EOF
 ```
 
 **Key points for Option B:**
+- The [Datadog Connector](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector) computes APM stats (latency, error rates, request counts) from traces before they are exported. These stats power the APM service page, service map, and latency histograms.
+- Traces flow: `otlp → resourcedetection → datadog/connector → datadog/exporter`. The connector also feeds computed metrics into the metrics pipeline.
 - No `cumulativetodelta` processor needed — the Datadog exporter handles temporality automatically.
 - Hostname and tags are set in both `datadog/exporter` and the `datadog` extension. They **must match**.
 - Uses `sending_queue` for exporter-level batching — no batch processor needed ([why?](https://github.com/open-telemetry/opentelemetry.io/pull/9088)).
