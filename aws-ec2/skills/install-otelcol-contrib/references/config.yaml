@@ -1,0 +1,94 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Host metrics — replaces Datadog Agent for infrastructure monitoring
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      load:
+      memory:
+      network:
+      paging:
+      processes:
+
+  # System logs — collect syslog and auth logs from the host
+  filelog/system:
+    include:
+      - /var/log/messages
+      - /var/log/secure
+    include_file_name: true
+    include_file_path: true
+    storage: file_storage
+    operators:
+      - type: regex_parser
+        regex: '^(?P<time>\w+ +\d+ \d+:\d+:\d+) (?P<host>\S+) (?P<ident>\S+?)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
+        severity:
+          parse_from: attributes.ident
+        timestamp:
+          parse_from: attributes.time
+          layout: '%b %d %H:%M:%S'
+
+processors:
+  batch:
+    send_batch_size: 1000
+    timeout: 10s
+
+  resourcedetection:
+    detectors: [system, env]
+    system:
+      hostname_sources: ["os"]
+      resource_attributes:
+        host.name:
+          enabled: true
+        os.type:
+          enabled: true
+
+exporters:
+  # Native Datadog exporter — full-fidelity (service map, trace metrics, host metadata)
+  datadog:
+    hostname: "jek-ec2-centos9"
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    traces:
+      span_name_as_resource_name: true
+    host_metadata:
+      enabled: true
+      hostname_source: config_or_system
+      tags:
+        - env:sandbox
+        - owner:jek
+
+  # Debug exporter — for troubleshooting during setup
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol-contrib/storage
+
+service:
+  extensions: [health_check, file_storage]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, batch]
+      exporters: [datadog, debug]
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [resourcedetection, batch]
+      exporters: [datadog]
+    logs:
+      receivers: [otlp, filelog/system]
+      processors: [resourcedetection, batch]
+      exporters: [datadog]
