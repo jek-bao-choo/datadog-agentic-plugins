@@ -3,9 +3,10 @@ name: install-otelcol-contrib
 description: >-
   Install the OpenTelemetry Collector Contrib on an EC2 instance as a systemd service.
   Configures OTLP receivers (gRPC 4317, HTTP 4318), hostmetrics receiver, filelog receiver
-  for system logs, native Datadog exporter for traces/metrics/logs, and the Datadog extension
-  for Fleet Automation visibility. Replaces the Datadog Agent entirely — all telemetry flows
-  through OTel. Includes custom hostname and tags configuration.
+  for system logs, and the Datadog extension for Fleet Automation visibility. Offers two
+  exporter options: (A) OTLP HTTP Exporter (vendor-neutral, sends to Datadog OTLP ingest
+  endpoints) or (B) native Datadog Exporter (full-fidelity service map, trace metrics,
+  host metadata). Replaces the Datadog Agent entirely.
 version: 0.1.0
 version_matrix:
   otelcol-contrib: ["0.149.0"]
@@ -14,7 +15,7 @@ version_matrix:
 
 # Install OTel Collector Contrib
 
-Install and configure the OpenTelemetry Collector Contrib as a systemd service on EC2. This is the sole telemetry pipeline — no Datadog Agent needed.
+Install and configure the OpenTelemetry Collector Contrib as a systemd service on EC2. This is the sole telemetry pipeline — no Datadog Agent needed. Two exporter options are available.
 
 ## Prerequisites
 
@@ -22,69 +23,48 @@ Install and configure the OpenTelemetry Collector Contrib as a systemd service o
 - SSH access to the instance
 - Datadog API key (DD_API_KEY) for datadoghq.com (US1)
 
-## Pipelines
+## Exporter Options
+
+### Option A: OTLP HTTP Exporter (vendor-neutral)
+
+| Pipeline | Receivers | Processors | Exporters |
+|---|---|---|---|
+| Traces | OTLP (gRPC 4317, HTTP 4318) | resourcedetection | otlphttp/dd_traces, debug |
+| Metrics | OTLP + hostmetrics | resourcedetection, cumulativetodelta | otlphttp/dd_metrics |
+| Logs | OTLP + filelog/system | resourcedetection | otlphttp/dd_logs |
+
+Uses standard OTLP protocol to send to Datadog's OTLP ingest endpoints (`otlp.datadoghq.com`). No Datadog-specific exporter component. Requires `cumulativetodelta` processor for metrics.
+
+### Option B: Datadog Exporter (native, full-fidelity)
 
 | Pipeline | Receivers | Processors | Exporters |
 |---|---|---|---|
 | Traces | OTLP (gRPC 4317, HTTP 4318) | resourcedetection | datadog/exporter, debug |
-| Metrics | OTLP + hostmetrics (CPU, disk, memory, network, load) | resourcedetection | datadog/exporter |
-| Logs | OTLP + filelog/system (/var/log/messages, /var/log/secure) | resourcedetection | datadog/exporter |
+| Metrics | OTLP + hostmetrics | resourcedetection | datadog/exporter |
+| Logs | OTLP + filelog/system | resourcedetection | datadog/exporter |
 
-No batch processor — the Datadog exporter's built-in `sending_queue` handles batching with better durability during collector restarts.
+Native Datadog exporter with built-in `sending_queue` for batching ([no batch processor needed](https://github.com/open-telemetry/opentelemetry.io/pull/9088)). Handles metrics temporality automatically. Named `datadog/exporter` to disambiguate from the `datadog` extension ([per Datadog docs](https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension.md)).
+
+Both options include the [Datadog extension](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md) for Fleet Automation visibility.
 
 ## Instructions
 
-### Option A: Automated install via script
+See **README.md** for the full step-by-step guide. Quick summary:
 
-From your local machine:
+### Automated install via script
 
 ```bash
-# SCP config and install script to the instance
 scp -i ~/.ssh/jek_rsa_pem references/config.yaml ec2-user@<IP>:/tmp/otelcol-contrib-config.yaml
 scp -i ~/.ssh/jek_rsa_pem scripts/install.sh ec2-user@<IP>:/tmp/install-otelcol.sh
-
-# Run the install script (pass your DD_API_KEY as the argument)
 ssh -i ~/.ssh/jek_rsa_pem ec2-user@<IP> 'chmod +x /tmp/install-otelcol.sh && /tmp/install-otelcol.sh <DD_API_KEY>'
 ```
 
-### Option B: Manual install on the instance
-
-SSH into the instance, then:
-
-```bash
-# 1. Download and install RPM
-curl -L -o /tmp/otelcol-contrib.rpm \
-  https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.149.0/otelcol-contrib_0.149.0_linux_amd64.rpm
-sudo rpm -Uvh /tmp/otelcol-contrib.rpm
-rm -f /tmp/otelcol-contrib.rpm
-
-# 2. Deploy config (copy references/config.yaml to the instance first)
-sudo cp /tmp/otelcol-contrib-config.yaml /etc/otelcol-contrib/config.yaml
-
-# 3. Set environment variables (BOTH are required)
-sudo tee /etc/otelcol-contrib/otelcol-contrib.conf > /dev/null <<EOF
-DD_API_KEY=<your-api-key>
-OTELCOL_OPTIONS="--config=/etc/otelcol-contrib/config.yaml"
-EOF
-sudo chmod 600 /etc/otelcol-contrib/otelcol-contrib.conf
-
-# 4. Grant log file access for the filelog receiver
-sudo setfacl -m u:otelcol-contrib:r /var/log/messages /var/log/secure
-sudo mkdir -p /var/lib/otelcol-contrib/storage
-sudo chown otelcol-contrib:otelcol-contrib /var/lib/otelcol-contrib/storage
-
-# 5. Start the service
-sudo systemctl daemon-reload
-sudo systemctl enable --now otelcol-contrib
-```
+The `references/config.yaml` contains both options. Edit it to uncomment your preferred exporter before deploying.
 
 ## Validation
 
 ```bash
-# Service running
 sudo systemctl status otelcol-contrib
-
-# Health check
 curl -s http://localhost:13133/
 
 # Send test trace
@@ -92,24 +72,32 @@ curl -X POST http://localhost:4318/v1/traces \
   -H "Content-Type: application/json" \
   -d '{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"jek-otel-test"}}]},"scopeSpans":[{"spans":[{"traceId":"5B8EFFF798038103D269B633813FC60C","spanId":"EEE19B7EC3C1B174","name":"test-span","kind":1,"startTimeUnixNano":"1000000000","endTimeUnixNano":"2000000000","status":{}}]}]}]}'
 
-# Check Datadog:
-# - APM > Traces: service:jek-otel-test
-# - Logs: host:jek-ec2-centos9
-# - Infrastructure > Host Map: jek-ec2-centos9 with env:sandbox, owner:jek tags
+# Datadog: APM > Traces: service:jek-otel-test
+# Datadog: Logs: host:jek-ec2-centos9
+# Datadog: Infrastructure > Host Map: jek-ec2-centos9
 ```
 
 ## Customization
 
-To change the hostname or tags, edit `/etc/otelcol-contrib/config.yaml`:
+**Option A** — hostname/tags via extension only:
+```yaml
+extensions:
+  datadog:
+    hostname: "your-hostname"
+```
 
+**Option B** — hostname/tags in both exporter and extension (must match):
 ```yaml
 exporters:
   datadog/exporter:
-    hostname: "your-hostname"       # Shows in Datadog Infrastructure
+    hostname: "your-hostname"
     host_metadata:
       tags:
-        - env:your-env              # Adds tags to the host
+        - env:your-env
         - owner:your-name
+extensions:
+  datadog:
+    hostname: "your-hostname"
 ```
 
 Then restart: `sudo systemctl restart otelcol-contrib`
@@ -121,9 +109,7 @@ Then restart: `sudo systemctl restart otelcol-contrib`
 | `at least one config flag must be provided` | Add `OTELCOL_OPTIONS="--config=/etc/otelcol-contrib/config.yaml"` to env file |
 | `API key validation failed` | Check DD_API_KEY in `/etc/otelcol-contrib/otelcol-contrib.conf` |
 | No logs in Datadog | Run `sudo setfacl -m u:otelcol-contrib:r /var/log/messages /var/log/secure` |
-| Hostname shows instance ID | Set `hostname` in `datadog/exporter` config, restart, wait 5-10 min |
-
-Full troubleshooting details in README.md.
+| Hostname shows instance ID | Set `hostname` in extension (Option A) or both exporter + extension (Option B) |
 
 ## Teardown
 

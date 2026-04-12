@@ -47,26 +47,56 @@ processors:
         os.type:
           enabled: true
 
+  # Convert cumulative metrics to delta (Datadog OTLP ingest requires delta temporality)
+  cumulativetodelta:
+
 exporters:
-  # Native Datadog exporter — full-fidelity (service map, trace metrics, host metadata)
-  # Named datadog/exporter to disambiguate from the datadog extension
-  datadog/exporter:
-    hostname: "jek-ec2-centos9"
-    sending_queue:
-      enabled: true
-      num_consumers: 10
-      queue_size: 1000
-    api:
-      key: ${env:DD_API_KEY}
-      site: datadoghq.com
-    traces:
-      span_name_as_resource_name: true
-    host_metadata:
-      enabled: true
-      hostname_source: config_or_system
-      tags:
-        - env:sandbox
-        - owner:jek
+  # =========================================================================
+  # EXPERIMENT: Using OTLP HTTP exporters to Datadog's OTLP ingest endpoints
+  # instead of the native datadog/exporter.
+  # =========================================================================
+
+  # Traces — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/
+  otlphttp/dd_traces:
+    traces_endpoint: "https://otlp.datadoghq.com/v1/traces"
+    headers:
+      dd-api-key: ${env:DD_API_KEY}
+      dd-otlp-source: "datadog"
+
+  # Metrics — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/metrics.md
+  otlphttp/dd_metrics:
+    metrics_endpoint: "https://otlp.datadoghq.com/v1/metrics"
+    headers:
+      dd-api-key: ${env:DD_API_KEY}
+      dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
+
+  # Logs — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/logs.md
+  otlphttp/dd_logs:
+    logs_endpoint: "https://otlp.datadoghq.com/v1/logs"
+    headers:
+      dd-api-key: ${env:DD_API_KEY}
+
+  # =========================================================================
+  # COMMENTED OUT: Native Datadog exporter (restore by uncommenting below
+  # and switching pipeline exporters back to datadog/exporter)
+  # =========================================================================
+  # datadog/exporter:
+  #   hostname: "jek-ec2-centos9"
+  #   sending_queue:
+  #     enabled: true
+  #     num_consumers: 10
+  #     queue_size: 1000
+  #   api:
+  #     key: ${env:DD_API_KEY}
+  #     site: datadoghq.com
+  #   traces:
+  #     span_name_as_resource_name: true
+  #   host_metadata:
+  #     enabled: true
+  #     hostname_source: config_or_system
+  #     tags:
+  #       - env:sandbox
+  #       - owner:jek
 
   # Debug exporter — for troubleshooting during setup
   debug:
@@ -91,12 +121,16 @@ service:
     traces:
       receivers: [otlp]
       processors: [resourcedetection]
-      exporters: [datadog/exporter, debug]
+      # exporters: [datadog/exporter, debug] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
+      exporters: [otlphttp/dd_traces, debug]
     metrics:
       receivers: [otlp, hostmetrics]
-      processors: [resourcedetection]
-      exporters: [datadog/exporter]
+      # processors: [resourcedetection] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
+      # exporters: [datadog/exporter] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
+      processors: [resourcedetection, cumulativetodelta]
+      exporters: [otlphttp/dd_metrics]
     logs:
       receivers: [otlp, filelog/system]
       processors: [resourcedetection]
-      exporters: [datadog/exporter]
+      # exporters: [datadog/exporter] # COMMENTED OUT TO USE OTLPHTTP EXPORTER
+      exporters: [otlphttp/dd_logs]

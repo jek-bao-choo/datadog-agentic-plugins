@@ -2,6 +2,8 @@
 
 Step-by-step guide to install the OpenTelemetry Collector Contrib on CentOS Stream 9 as a systemd service. This replaces the Datadog Agent entirely — all telemetry (traces, metrics, logs, host metrics) flows through the OTel Collector to Datadog.
 
+Two exporter options are available. Choose one in Step 3.
+
 ## Prerequisites
 
 Before starting, make sure you have:
@@ -39,9 +41,33 @@ This installs:
 - Config directory at `/etc/otelcol-contrib/`
 - Runs as user `otelcol-contrib`
 
-## Step 3: Deploy the config file
+## Step 3: Choose your exporter and deploy the config
 
-Create the config file at `/etc/otelcol-contrib/config.yaml`. This file controls what the collector receives, how it processes data, and where it exports to.
+There are two ways to export telemetry to Datadog. Pick **one**.
+
+### Which option should I choose?
+
+| Feature | Option A: OTLP HTTP Exporter | Option B: Datadog Exporter |
+|---|---|---|
+| Protocol | Standard OTLP — vendor-neutral | Datadog-native |
+| Vendor lock-in | None | Datadog-specific component |
+| Service map | Yes (via OTLP ingest) | Yes (full-fidelity) |
+| Host metadata/tags | Via Datadog extension | Built-in `host_metadata` + extension |
+| Metrics temporality | Needs `cumulativetodelta` processor | Handled automatically |
+| Batching | Standard OTLP HTTP batching | Built-in `sending_queue` ([why no batch processor?](https://github.com/open-telemetry/opentelemetry.io/pull/9088)) |
+| Config complexity | 3 named exporters (one per signal) | 1 exporter |
+| Docs | [OTLP Ingest](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/) | [Datadog Exporter](https://docs.datadoghq.com/opentelemetry/setup/collector/) |
+
+---
+
+### Option A: OTLP HTTP Exporter (vendor-neutral)
+
+Sends traces, metrics, and logs to Datadog's OTLP ingest endpoints using the standard `otlphttp` exporter. No Datadog-specific exporter component needed.
+
+References:
+- Traces: `https://otlp.datadoghq.com/v1/traces` ([source](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/))
+- Metrics: `https://otlp.datadoghq.com/v1/metrics` ([source](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/metrics.md))
+- Logs: `https://otlp.datadoghq.com/v1/logs` ([source](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/logs.md))
 
 ```bash
 sudo tee /etc/otelcol-contrib/config.yaml > /dev/null <<'EOF'
@@ -53,7 +79,6 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
-  # Host metrics — replaces Datadog Agent for infrastructure monitoring
   hostmetrics:
     collection_interval: 30s
     scrapers:
@@ -66,7 +91,123 @@ receivers:
       paging:
       processes:
 
-  # System logs — collect syslog and auth logs from the host
+  filelog/system:
+    include:
+      - /var/log/messages
+      - /var/log/secure
+    include_file_name: true
+    include_file_path: true
+    storage: file_storage
+    operators:
+      - type: regex_parser
+        regex: '^(?P<time>\w+ +\d+ \d+:\d+:\d+) (?P<host>\S+) (?P<ident>\S+?)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
+        severity:
+          parse_from: attributes.ident
+        timestamp:
+          parse_from: attributes.time
+          layout: '%b %d %H:%M:%S'
+
+processors:
+  resourcedetection:
+    detectors: [system, env]
+    system:
+      hostname_sources: ["os"]
+      resource_attributes:
+        host.name:
+          enabled: true
+        os.type:
+          enabled: true
+
+  # Datadog OTLP ingest requires delta temporality for metrics.
+  # hostmetrics emits cumulative by default — this processor converts them.
+  cumulativetodelta:
+
+exporters:
+  # Traces — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/
+  otlphttp/dd_traces:
+    traces_endpoint: "https://otlp.datadoghq.com/v1/traces"
+    headers:
+      dd-api-key: ${env:DD_API_KEY}
+      dd-otlp-source: "datadog"
+
+  # Metrics — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/metrics.md
+  otlphttp/dd_metrics:
+    metrics_endpoint: "https://otlp.datadoghq.com/v1/metrics"
+    headers:
+      dd-api-key: ${env:DD_API_KEY}
+      dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
+
+  # Logs — https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest/logs.md
+  otlphttp/dd_logs:
+    logs_endpoint: "https://otlp.datadoghq.com/v1/logs"
+    headers:
+      dd-api-key: ${env:DD_API_KEY}
+
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol-contrib/storage
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    hostname: "jek-ec2-centos9"
+
+service:
+  extensions: [health_check, file_storage, datadog]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection]
+      exporters: [otlphttp/dd_traces, debug]
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [resourcedetection, cumulativetodelta]
+      exporters: [otlphttp/dd_metrics]
+    logs:
+      receivers: [otlp, filelog/system]
+      processors: [resourcedetection]
+      exporters: [otlphttp/dd_logs]
+EOF
+```
+
+**Key points for Option A:**
+- The `cumulativetodelta` processor is required because Datadog OTLP ingest only accepts delta metrics, but `hostmetrics` emits cumulative.
+- Hostname and tags are set via the `datadog` extension (not the exporter).
+- Each signal (traces, metrics, logs) has its own named exporter with signal-specific headers.
+
+---
+
+### Option B: Datadog Exporter (native, full-fidelity)
+
+Uses the native `datadog/exporter` from otelcol-contrib. Provides full-fidelity service map, trace metrics, and built-in host metadata. Named `datadog/exporter` to disambiguate from the `datadog` extension ([per Datadog docs](https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension.md)).
+
+```bash
+sudo tee /etc/otelcol-contrib/config.yaml > /dev/null <<'EOF'
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      load:
+      memory:
+      network:
+      paging:
+      processes:
+
   filelog/system:
     include:
       - /var/log/messages
@@ -95,7 +236,6 @@ processors:
           enabled: true
 
 exporters:
-  # Native Datadog exporter — full-fidelity (service map, trace metrics, host metadata)
   # Named datadog/exporter to disambiguate from the datadog extension
   datadog/exporter:
     hostname: "jek-ec2-centos9"
@@ -115,7 +255,6 @@ exporters:
         - env:sandbox
         - owner:jek
 
-  # Debug exporter — for troubleshooting during setup
   debug:
     verbosity: basic
 
@@ -124,8 +263,6 @@ extensions:
     endpoint: 0.0.0.0:13133
   file_storage:
     directory: /var/lib/otelcol-contrib/storage
-  # Datadog extension — makes collector visible in Datadog Infrastructure and Fleet Automation
-  # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md
   datadog:
     api:
       key: ${env:DD_API_KEY}
@@ -150,36 +287,12 @@ service:
 EOF
 ```
 
-### What each section does
+**Key points for Option B:**
+- No `cumulativetodelta` processor needed — the Datadog exporter handles temporality automatically.
+- Hostname and tags are set in both `datadog/exporter` and the `datadog` extension. They **must match**.
+- Uses `sending_queue` for exporter-level batching — no batch processor needed ([why?](https://github.com/open-telemetry/opentelemetry.io/pull/9088)).
 
-| Section | Purpose |
-|---|---|
-| `datadog/exporter.hostname` | Sets the hostname shown in Datadog (default is EC2 instance ID which is not human-readable) |
-| `datadog/exporter.host_metadata.tags` | Adds tags like `env:sandbox` and `owner:jek` to the host in Datadog |
-| `otlp` receiver | Receives traces, metrics, logs from Java apps via OTel Java agent (ports 4317/4318) |
-| `hostmetrics` receiver | Collects CPU, memory, disk, network metrics from the host (replaces Datadog Agent) |
-| `filelog/system` receiver | Reads system logs from `/var/log/messages` and `/var/log/secure` |
-| `datadog/exporter` exporter | Sends all telemetry to Datadog US1 using your API key. Named `datadog/exporter` to disambiguate from the `datadog` extension. Has built-in batching via `sending_queue` — no separate batch processor needed. See: [Sunset of the OTel Batch Processor](https://github.com/open-telemetry/opentelemetry.io/pull/9088), [Move batching to exporters](https://github.com/open-telemetry/opentelemetry-collector/issues/8122) |
-| `datadog/exporter.sending_queue` | Exporter-level batching and queuing. Replaces the deprecated batch processor with better durability during collector restarts |
-| `debug` exporter | Prints trace info to collector logs for troubleshooting |
-| `datadog` extension | Makes collector config and build info visible in Datadog Infrastructure and [Fleet Automation](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md). Hostname must match the exporter's hostname |
-
-### To customize hostname and tags
-
-Edit the `datadog/exporter` section in the config:
-
-```yaml
-exporters:
-  datadog/exporter:
-    hostname: "your-custom-hostname"    # Change this
-    host_metadata:
-      tags:
-        - env:your-environment           # Change this
-        - owner:your-name                # Change this
-        - team:your-team                 # Add more tags
-```
-
-After changing, restart the service: `sudo systemctl restart otelcol-contrib`
+---
 
 ## Step 4: Configure the environment file
 
@@ -233,7 +346,6 @@ You should see `Active: active (running)`. The logs should show:
 - `Starting GRPC server` on port 4317
 - `Starting HTTP server` on port 4318
 - `Started watching file` for `/var/log/messages` and `/var/log/secure`
-- `API key validation successful`
 - `Everything is ready. Begin running and processing data.`
 
 If it fails, check the logs:
@@ -286,9 +398,43 @@ Expected: `{"partialSuccess":{}}`
 
 1. **Traces**: Go to APM > Traces. Search for `service:jek-otel-test`. You should see the `test-span-verify` span with host `jek-ec2-centos9`.
 
-2. **Logs**: Go to Logs. Search for `host:jek-ec2-centos9`. You should see system log entries from `/var/log/messages` and `/var/log/secure` with source `otelcol-contrib`.
+2. **Logs**: Go to Logs. Search for `host:jek-ec2-centos9`. You should see system log entries from `/var/log/messages` and `/var/log/secure`.
 
 3. **Host metrics**: Go to Infrastructure > Host Map. Find `jek-ec2-centos9`. The Host Info tab should show CPU, memory, filesystem metrics. Tags should show `env:sandbox` and `owner:jek`.
+
+## Customization
+
+### Changing hostname and tags
+
+**If using Option A (OTLP HTTP):** Edit the `datadog` extension section:
+
+```yaml
+extensions:
+  datadog:
+    hostname: "your-custom-hostname"
+```
+
+**If using Option B (Datadog Exporter):** Edit **both** the exporter and extension (they must match):
+
+```yaml
+exporters:
+  datadog/exporter:
+    hostname: "your-custom-hostname"
+    host_metadata:
+      tags:
+        - env:your-environment
+        - owner:your-name
+
+extensions:
+  datadog:
+    hostname: "your-custom-hostname"
+```
+
+After changing, restart: `sudo systemctl restart otelcol-contrib`
+
+### Switching between exporters
+
+To switch from Option A to Option B (or vice versa), replace the config file in Step 3 with the other option's config block and restart the service. No reinstallation needed.
 
 ## Troubleshooting
 
@@ -318,7 +464,8 @@ sudo journalctl -u otelcol-contrib -n 50 --no-pager
 
 ### Hostname shows as EC2 instance ID instead of custom name
 
-- Check `hostname` is set in the `datadog/exporter` section of config.yaml
+- If Option A: check `hostname` in the `datadog` extension config
+- If Option B: check `hostname` in both `datadog/exporter` and the `datadog` extension — they must match
 - Restart: `sudo systemctl restart otelcol-contrib`
 - Wait 5-10 minutes for host metadata to update in Datadog
 
