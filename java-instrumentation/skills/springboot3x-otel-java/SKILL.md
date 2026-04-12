@@ -52,7 +52,7 @@ curl -L -o /opt/otel/opentelemetry-javaagent.jar \
 java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
   -Dotel.service.name=jek-otel-java-springboot3x \
   -Dotel.resource.attributes=deployment.environment=sandbox,service.version=1.0.0 \
-  -Dotel.exporter.otlp.endpoint=http://localhost:4318 \
+  -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 \
   -Dotel.exporter.otlp.protocol=http/protobuf \
   -Dotel.logs.exporter=otlp \
   -Dotel.metrics.exporter=otlp \

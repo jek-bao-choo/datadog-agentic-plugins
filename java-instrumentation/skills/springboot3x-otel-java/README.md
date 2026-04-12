@@ -9,7 +9,7 @@ Step-by-step guide to instrument a Spring Boot 3.x application with the [OpenTel
 | OTel Java agent | v2.26.1 |
 | Download URL | [opentelemetry-javaagent.jar](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar) |
 | Protocol | OTLP HTTP (http/protobuf) |
-| Collector endpoint | http://localhost:4318 |
+| Collector endpoint | http://127.0.0.1:4318 |
 | Service name | jek-otel-java-springboot3x |
 | Environment | sandbox |
 
@@ -86,7 +86,7 @@ cd /opt/cargostream/component-d
 java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
   -Dotel.service.name=jek-otel-java-springboot3x \
   -Dotel.resource.attributes=deployment.environment=sandbox,service.version=1.0.0 \
-  -Dotel.exporter.otlp.endpoint=http://localhost:4318 \
+  -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 \
   -Dotel.exporter.otlp.protocol=http/protobuf \
   -Dotel.logs.exporter=otlp \
   -Dotel.metrics.exporter=otlp \
@@ -100,7 +100,7 @@ java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
 | `-javaagent:/opt/otel/opentelemetry-javaagent.jar` | Attaches the OTel agent to the JVM — enables auto-instrumentation |
 | `-Dotel.service.name=jek-otel-java-springboot3x` | Sets the service name shown in Datadog APM |
 | `-Dotel.resource.attributes=deployment.environment=sandbox,service.version=1.0.0` | Adds environment and version tags |
-| `-Dotel.exporter.otlp.endpoint=http://localhost:4318` | Sends telemetry to the local OTel Collector |
+| `-Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318` | Sends telemetry to the local OTel Collector |
 | `-Dotel.exporter.otlp.protocol=http/protobuf` | Uses HTTP protobuf (not gRPC) |
 | `-Dotel.logs.exporter=otlp` | Exports Logback log records via OTLP |
 | `-Dotel.metrics.exporter=otlp` | Exports JVM runtime metrics via OTLP |
@@ -122,7 +122,7 @@ To run in the background (so you can continue in the same terminal):
 nohup java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
   -Dotel.service.name=jek-otel-java-springboot3x \
   -Dotel.resource.attributes=deployment.environment=sandbox,service.version=1.0.0 \
-  -Dotel.exporter.otlp.endpoint=http://localhost:4318 \
+  -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 \
   -Dotel.exporter.otlp.protocol=http/protobuf \
   -Dotel.logs.exporter=otlp \
   -Dotel.metrics.exporter=otlp \
@@ -215,12 +215,18 @@ You should see:
 
 ### 7c. JVM runtime metrics
 
-Go to **Infrastructure > Host Map**. Click on `jek-ec2-centos9`.
-
-Under the **Metrics** tab, you should see JVM metrics:
-- `jvm.memory.used`, `jvm.memory.committed`
+Go to **Metrics > Summary**. Search for `jvm`. You should see metrics like:
+- `jvm.memory.used`, `jvm.memory.committed`, `jvm.memory.limit`
 - `jvm.gc.duration`
 - `jvm.thread.count`
+- `jvm.cpu.time`, `jvm.cpu.recent_utilization`
+- `jvm.class.count`, `jvm.class.loaded`
+
+Click any metric to verify tags include `env:sandbox`, `host:jek-ec2-centos9`, and `instrumentation_scope:io.opentelemetry.runtime-telemetry-java8`.
+
+You can also go to **Metrics > Explorer**, select `jvm.memory.used`, and filter by `service:jek-otel-java-springboot3x` to graph it.
+
+**Note:** The **APM > Traces > Metrics tab** ("Runtime Metrics") may show "Enable automatic Runtime Metric collection." This is expected — that tab is designed for the old OTel metric names (`process.runtime.jvm.*`), but the OTel Java agent v2.x emits the new semantic convention names (`jvm.*`). The metrics ARE in Datadog (check Metrics Summary/Explorer), they just don't auto-populate the APM Runtime Metrics built-in dashboard. Create a **custom dashboard** with `jvm.memory.used`, `jvm.gc.duration`, `jvm.thread.count` filtered by service to visualize them.
 
 ## How trace-to-log correlation works
 

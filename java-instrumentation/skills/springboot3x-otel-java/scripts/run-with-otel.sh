@@ -22,7 +22,7 @@ echo "=== Starting ${SERVICE_NAME} on port ${PORT} with OTel Java agent ==="
 java -javaagent:${OTEL_AGENT} \
   -Dotel.service.name=${SERVICE_NAME} \
   -Dotel.resource.attributes=deployment.environment=sandbox,service.version=1.0.0 \
-  -Dotel.exporter.otlp.endpoint=http://localhost:4318 \
+  -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 \
   -Dotel.exporter.otlp.protocol=http/protobuf \
   -Dotel.logs.exporter=otlp \
   -Dotel.metrics.exporter=otlp \
