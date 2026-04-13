@@ -437,50 +437,195 @@ On startup you'll see:
 
 ## Prerequisites
 
-- Java 17 and Maven on the build machine
-- Datadog Agent running on `localhost:8126` (or configured via `-Ddsm.agent.url`)
+Before starting, verify you have:
 
-## Step 1: Copy source to build machine
+- Java 17 and Maven on the EC2 instance (from `setup-ec2-centos9`)
+- OTel Collector running on `127.0.0.1:4318` (from `install-otelcol-contrib`)
+- Spring Boot app built (from `setup-springboot3x`) — JAR at `/opt/cargostream/component-d/target/springboot3x-0.0.1-SNAPSHOT.jar`
+- OTel Java agent at `/opt/otel/opentelemetry-javaagent.jar` (from `springboot3x-otel-java`)
+- **Optional**: Datadog Agent on localhost:8126 (only if using `dsm.export.enabled=true`)
+
+All commands below are run **on the EC2 instance** unless stated otherwise.
+
+## Step 1: Copy the DSM extension source to the EC2 instance
+
+From your local machine (in the `create-otel-dsm-ext` skill directory):
 
 ```bash
+# Create the target directory on EC2
+ssh -i ~/.ssh/jek_rsa_pem ec2-user@<EC2_PUBLIC_IP> \
+  'sudo mkdir -p /opt/otel/dsm-ext-src && sudo chown ec2-user:ec2-user /opt/otel/dsm-ext-src'
+
+# Copy the Maven project source
 scp -i ~/.ssh/jek_rsa_pem -r references/* ec2-user@<EC2_PUBLIC_IP>:/opt/otel/dsm-ext-src/
 ```
 
-## Step 2: Build
+## Step 2: Build the extension JAR
+
+SSH into the EC2 instance:
+
+```bash
+ssh -i ~/.ssh/jek_rsa_pem ec2-user@<EC2_PUBLIC_IP>
+```
+
+Build:
 
 ```bash
 cd /opt/otel/dsm-ext-src
 mvn clean package
 ```
 
-Produces `target/otel-dsm-extension-1.0.jar`.
+This produces `target/otel-dsm-extension-1.0.jar` (~149KB, includes shaded msgpack-core).
 
-## Step 3: Deploy
+## Step 3: Deploy the JAR to the extensions directory
 
 ```bash
+mkdir -p /opt/otel/extensions
 cp target/otel-dsm-extension-1.0.jar /opt/otel/extensions/
 ```
 
-## Step 4: Load with the OTel Java agent
+Verify:
 
 ```bash
+ls -lh /opt/otel/extensions/otel-dsm-extension-1.0.jar
+# Should be ~149KB
+```
+
+## Step 4: Verify the JAR contents
+
+```bash
+jar tf /opt/otel/extensions/otel-dsm-extension-1.0.jar | grep -E "oteldsm|msgpack|services"
+```
+
+You should see:
+- `com/example/oteldsm/DsmExtensionProvider.class`
+- `com/example/oteldsm/processor/DsmSpanProcessor.class`
+- `com/example/oteldsm/propagator/DatadogPathwayPropagator.class`
+- `org/msgpack/core/` (shaded dependency)
+- `META-INF/services/io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider`
+
+## Step 5: Stop the current application (if running)
+
+```bash
+pkill -f springboot3x 2>/dev/null
+sleep 2
+```
+
+## Step 6: Start the application with the DSM extension
+
+The DSM extension is loaded via `-Dotel.javaagent.extensions`. By default, it runs in **OTel Collector only mode** (no DD Agent needed):
+
+```bash
+cd /opt/cargostream/component-d
+
 java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
   -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar \
-  -Ddsm.agent.url=http://localhost:8126 \
+  -Dloader.path=/opt/otel/extensions/ \
   -Dotel.service.name=jek-otel-java-springboot3x \
   -Dotel.resource.attributes=deployment.environment=sandbox,service.version=1.0.0 \
   -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 \
   -Dotel.exporter.otlp.protocol=http/protobuf \
-  -jar my-app.jar
+  -Dotel.logs.exporter=otlp \
+  -Dotel.metrics.exporter=otlp \
+  -Dotel.instrumentation.http.server.capture-request-headers=transaction_id \
+  -Dotel.instrumentation.http.server.capture-response-headers=transaction_id \
+  -jar target/springboot3x-0.0.1-SNAPSHOT.jar --server.port=8084
 ```
 
-On startup you should see:
+To run in the background:
+
+```bash
+nohup java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
+  -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar \
+  -Dloader.path=/opt/otel/extensions/ \
+  -Dotel.service.name=jek-otel-java-springboot3x \
+  -Dotel.resource.attributes=deployment.environment=sandbox,service.version=1.0.0 \
+  -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 \
+  -Dotel.exporter.otlp.protocol=http/protobuf \
+  -Dotel.logs.exporter=otlp \
+  -Dotel.metrics.exporter=otlp \
+  -Dotel.instrumentation.http.server.capture-request-headers=transaction_id \
+  -Dotel.instrumentation.http.server.capture-response-headers=transaction_id \
+  -jar target/springboot3x-0.0.1-SNAPSHOT.jar --server.port=8084 \
+  > /tmp/component-d.log 2>&1 &
+
+sleep 15
+curl -s http://localhost:8084/health
 ```
+
+On startup you should see in the logs:
+
+```
+[otel.javaagent] opentelemetry-javaagent - version: 2.26.1
 [otel-dsm] Initializing Datadog DSM extension
-[otel-dsm]   Agent URL: http://localhost:8126
+[otel-dsm]   Export to DD Agent: DISABLED (OTel Collector only)
 [otel-dsm]   Service: jek-otel-java-springboot3x
 [otel-dsm]   Env: sandbox
+[otel-dsm]   Mode: Span attributes only (dsm.transaction.id → OTel Collector → Datadog)
+Started Springboot3xApplication in X.XX seconds
 ```
+
+**To enable DD Agent export** (optional), add these flags:
+```
+-Ddsm.export.enabled=true
+-Ddsm.agent.url=http://localhost:8126
+```
+
+## Step 7: Send traffic and verify in Datadog
+
+### 7a. Health check
+
+```bash
+curl -s http://localhost:8084/health
+```
+
+Expected: `{"status":"healthy","service":"jek-otel-java-springboot3x","port":8084}`
+
+### 7b. Send test XML requests with transaction_id header
+
+```bash
+for i in $(seq 1 5); do
+  curl -sf -o /dev/null -w "HTTP %{http_code}\n" -X POST http://localhost:8084/jek-receive-xml \
+    -H "Content-Type: application/xml" \
+    -H "transaction_id: TX-DSM-${i}" \
+    -d "<shipment><transaction_id>TX-DSM-${i}</transaction_id><airway_bill_id>AWB-DSM-${i}</airway_bill_id><houseway_bill_id>HWB-DSM-${i}</houseway_bill_id><timestamp>$(date -u +%Y-%m-%dT%H:%M:%SZ)</timestamp><source>dsm-test</source></shipment>"
+  sleep 3
+done
+```
+
+### 7c. Verify in Datadog (wait 1-2 minutes)
+
+Go to **Data Streams Monitoring > Transactions > logistics-shipment-flow > Traces**.
+
+You should see traces with:
+- `@DSM.TRANSACTION.ID`: `TX-DSM-1`, `TX-DSM-2`, etc.
+- `@DSM.TRANSACTION.CHECKPOINT`: `receive-xml`
+- Service: `jek-otel-java-springboot3x`
+
+You can also search in **APM > Traces**:
+```
+service:jek-otel-java-springboot3x @dsm.transaction.id:*
+```
+
+### 7d. Verify span attributes
+
+Click any trace. The span should have:
+- `pathway.hash` — FNV-1a hash
+- `dsm.transaction.id` — e.g., `TX-DSM-1`
+- `dsm.transaction.checkpoint` — `receive-xml`
+- `transaction_id` — e.g., `TX-DSM-1`
+- `airway_bill_id` — e.g., `AWB-DSM-1`
+- `houseway_bill_id` — e.g., `HWB-DSM-1`
+
+## Troubleshooting
+
+| Issue | Fix |
+|---|---|
+| No `[otel-dsm]` on startup | Check `-Dotel.javaagent.extensions` path is correct. Verify JAR exists. |
+| `ClassNotFoundException` for msgpack | JAR not properly shaded. Rebuild with `mvn clean package`. |
+| No `dsm.transaction.id` in traces | The XML attribute extractor must be loaded (`-Dloader.path=/opt/otel/extensions/`). |
+| `[otel-dsm] Error exporting stats` | DD Agent not running. Either install DD Agent or use default mode (export disabled). |
+| Port 8084 in use | `pkill -f springboot3x` and restart. |
 
 ## Components
 
