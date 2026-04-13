@@ -8,6 +8,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -59,13 +60,30 @@ public class XmlAttributeExtractorFilter implements Filter {
         // Let Spring MVC process the request normally
         chain.doFilter(cachedRequest, response);
 
-        // After processing, extract IDs from the cached body and add to the current span
+        // After processing, extract IDs from the cached body
         String body = cachedRequest.getCachedBody();
         if (body != null && !body.isEmpty()) {
+            // Add as span attributes (for APM trace visibility)
             Span span = Span.current();
             setIfPresent(span, "transaction_id", TX_ID, body);
             setIfPresent(span, "airway_bill_id", AWB_ID, body);
             setIfPresent(span, "houseway_bill_id", HWB_ID, body);
+
+            // Set DSM-specific attributes (for Datadog Data Streams Transaction Tracking)
+            // Must be set here because the DsmSpanProcessor.onStart() fires before this
+            // filter runs, and onEnd() has a read-only span.
+            setIfPresent(span, "dsm.transaction.id", TX_ID, body);
+            Matcher txMatcher = TX_ID.matcher(body);
+            if (txMatcher.find()) {
+                span.setAttribute("dsm.transaction.checkpoint", "receive-xml");
+            }
+
+            // Also set as HTTP response headers (for DSM Transaction Tracking)
+            // DSM extracts transaction IDs from HTTP headers, not span attributes
+            HttpServletResponse httpRes = (HttpServletResponse) response;
+            setResponseHeader(httpRes, "transaction_id", TX_ID, body);
+            setResponseHeader(httpRes, "airway_bill_id", AWB_ID, body);
+            setResponseHeader(httpRes, "houseway_bill_id", HWB_ID, body);
         }
     }
 
@@ -73,6 +91,13 @@ public class XmlAttributeExtractorFilter implements Filter {
         Matcher m = pattern.matcher(body);
         if (m.find()) {
             span.setAttribute(attrName, m.group(1));
+        }
+    }
+
+    private void setResponseHeader(HttpServletResponse response, String headerName, Pattern pattern, String body) {
+        Matcher m = pattern.matcher(body);
+        if (m.find()) {
+            response.setHeader(headerName, m.group(1));
         }
     }
 

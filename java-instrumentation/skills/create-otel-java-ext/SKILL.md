@@ -51,3 +51,7 @@ mvn clean package
 
 See README.md "Adapting for Your Prospect's Code" section for how to change:
 - Endpoint paths, field names, payload format (XML/JSON), ID location (body/headers/params)
+
+## Beyond span attributes: Data Streams Monitoring
+
+If the prospect uses async messaging (Kafka, SQS, RabbitMQ), see README.md "Beyond Span Attributes: Data Streams Monitoring Extension" for the architecture of a more advanced extension that implements Datadog DSM pathway tracking. This is a separate, significantly more complex extension (~1000+ lines, 5 components, requires DD Agent on localhost:8126). Full plan in `references/otel-dsm-extension-plan.md`.

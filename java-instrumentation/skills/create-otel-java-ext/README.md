@@ -231,3 +231,94 @@ if (orderId != null) Span.current().setAttribute("order.id", orderId);
 | `XmlAttributeAutoConfiguration.java` | URL patterns in `addUrlPatterns()` | When the prospect's endpoint path differs |
 | `pom.xml` | Add JSON parser dependency (e.g., `jackson-databind`) if using JSON with nested objects | Only if regex isn't sufficient for complex JSON |
 | Nothing | Use `-Dotel.instrumentation.http.server.capture-request-headers` instead | When IDs are in HTTP headers (no extension needed) |
+
+---
+
+## Beyond Span Attributes: Data Streams Monitoring Extension
+
+If your prospect uses **asynchronous messaging** (Kafka, SQS, RabbitMQ, Kinesis), you may need a much more advanced extension to enable Datadog's [Data Streams Monitoring (DSM)](https://docs.datadoghq.com/data_streams/) — which tracks end-to-end latency across producers, queues, and consumers.
+
+This is a **fundamentally different extension** from the simple attribute extractor above. Here's how they compare:
+
+| Aspect | This Extension (Span Attributes) | DSM Extension |
+|---|---|---|
+| Purpose | Extract business IDs → span attributes | Track pathway latency across async services |
+| Loading | `-Dloader.path` (Spring Boot classpath) | `-Dotel.javaagent.extensions` (OTel agent SPI) |
+| Registration | Spring Boot `@AutoConfiguration` | OTel `AutoConfigurationCustomizerProvider` + `ConfigurablePropagatorProvider` |
+| Components | 1 Servlet Filter | 5 components (see below) |
+| Dependencies | OTel API + Jakarta Servlet | OTel SDK + msgpack-core + JCTools |
+| Output | Span attributes in traces | Proprietary payload to DD Agent `/v0.1/pipeline_stats` |
+| Complexity | ~100 lines | ~1000+ lines |
+| Requires DD Agent | No | **Yes** — sends to `localhost:8126` |
+
+### The 5 components of a DSM extension
+
+1. **`DatadogPathwayPropagator`** (`TextMapPropagator`)
+   - Extracts/injects Datadog's proprietary `dd-pathway-ctx-base64` header across service boundaries
+   - Decodes: `parentHash`, `pathwayStartMillis`, `edgeStartMillis` using VarInt/ZigZag encoding
+   - This is how Datadog tracks the "pathway" an event takes across multiple services
+
+2. **`DsmSpanProcessor`** (`SpanProcessor`)
+   - Hooks into `onEnd()` for every span
+   - Checks if the span is a messaging span (has `messaging.destination.name`)
+   - Extracts `parentHash` from OTel Context
+   - Computes 64-bit FNV-1a `newHash` = hash(nodeHash, parentHash)
+   - Sets `pathway.hash`, `dsm.transaction.id`, `dsm.transaction.checkpoint` on the span
+   - These attributes are **critical** — without them, Datadog can't link APM traces to DSM
+
+3. **`PathwayHasher`**
+   - Implements FNV-1a 64-bit hashing
+   - Checkpoint string format: `type:kafka,direction:out,topic:orders`
+   - Combines nodeHash + parentHash to produce the pathway hash
+
+4. **`StatsAggregator`**
+   - Background thread with non-blocking MPSC queue (JCTools)
+   - Aggregates stats into 10-second time-windowed buckets
+   - For business transactions: packs into `TransactionContainer` byte array:
+     `[checkpointId (1 byte)] [timestamp (8 bytes)] [idLength (1 byte)] [transactionId bytes]`
+
+5. **`PipelineStatsExporter`**
+   - Serializes buckets into Datadog's proprietary MessagePack format
+   - HTTP POST to `http://localhost:8126/v0.1/pipeline_stats`
+   - Includes metadata: `Env`, `Service`, `TracerVersion`
+
+### Additional Maven dependencies needed
+
+```xml
+<dependency>
+    <groupId>org.msgpack</groupId>
+    <artifactId>msgpack-core</artifactId>
+    <version>0.9.8</version>
+</dependency>
+<dependency>
+    <groupId>org.jctools</groupId>
+    <artifactId>jctools-core</artifactId>
+    <version>4.0.3</version>
+</dependency>
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-sdk</artifactId>
+    <version>${opentelemetry.version}</version>
+    <scope>provided</scope>
+</dependency>
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-sdk-extension-autoconfigure-spi</artifactId>
+    <version>${opentelemetry.version}</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+### Key requirement: Datadog Agent on localhost
+
+Unlike the span attribute extractor (which only uses the OTel Collector), the DSM extension sends data directly to the Datadog Agent at `localhost:8126/v0.1/pipeline_stats`. This means you need a Datadog Agent running alongside the OTel Collector.
+
+### Reference implementation
+
+The DSM logic is reverse-engineered from Datadog's own Java tracer. The reference source code is in `dd-trace-java`:
+- [datadog/trace/core/datastreams/](https://github.com/DataDog/dd-trace-java/tree/master/dd-trace-core/src/main/java/datadog/trace/core/datastreams)
+- Key classes: `DefaultPathwayContext`, `DataStreamsPropagator`, `StatsBucket`, `StatsGroup`, `TransactionContainer`, `MsgPackDatastreamsPayloadWriter`
+
+### Full plan document
+
+See `references/otel-dsm-extension-plan.md` for the complete implementation plan, including verification strategy and alternatives considered.
