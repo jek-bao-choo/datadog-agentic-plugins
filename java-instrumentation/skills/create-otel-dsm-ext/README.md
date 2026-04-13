@@ -374,6 +374,58 @@ TransactionContainer binary format (packed per transaction):
 └──────────────┴──────────────────┴──────────────┴──────────────────────────┘
 ```
 
+## Running without Datadog Agent (OTel Collector only)
+
+The DSM extension has two operating modes controlled by `-Ddsm.export.enabled`:
+
+### Mode 1: OTel Collector only (default — no DD Agent needed)
+
+```bash
+java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
+  -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar \
+  # dsm.export.enabled defaults to false — no DD Agent needed
+  ...
+```
+
+| What | Works? |
+|---|---|
+| `pathway.hash` span attribute | Yes |
+| `dsm.transaction.id` span attribute | Yes |
+| `dsm.transaction.checkpoint` span attribute | Yes |
+| DSM Traces section in Datadog | **Yes** — queries `@dsm.transaction.id:*` from APM spans |
+| Background aggregation thread | Not started |
+| MessagePack export to DD Agent | Not attempted |
+| DSM Summary metrics | No |
+
+This is the recommended mode for PoC validation. The DSM Traces show transaction IDs correlated with APM traces — no DD Agent overhead.
+
+### Mode 2: Full DSM export (requires DD Agent)
+
+```bash
+java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
+  -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar \
+  -Ddsm.export.enabled=true \
+  -Ddsm.agent.url=http://localhost:8126 \
+  ...
+```
+
+Everything from Mode 1, plus:
+- Background StatsAggregator thread runs (10-second buckets)
+- MessagePack + gzip payloads exported to DD Agent `/v0.1/pipeline_stats`
+- Requires Datadog Agent running on localhost:8126
+
+On startup you'll see:
+
+```
+# Mode 1 (default):
+[otel-dsm]   Export to DD Agent: DISABLED (OTel Collector only)
+[otel-dsm]   Mode: Span attributes only (dsm.transaction.id → OTel Collector → Datadog)
+
+# Mode 2 (dsm.export.enabled=true):
+[otel-dsm]   Export to DD Agent: ENABLED → http://localhost:8126
+[otel-dsm]   Mode: Full DSM (span attributes + pipeline_stats export)
+```
+
 ## Tech Stack
 
 | Component | Version |

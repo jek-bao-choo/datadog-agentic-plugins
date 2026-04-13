@@ -26,7 +26,7 @@ App JVM (OTel Agent + DSM Extension)
 ## Prerequisites
 
 - Java 17, Maven 3.6.3+
-- Datadog Agent running on localhost:8126
+- Datadog Agent on localhost:8126 — **optional** (only needed if `dsm.export.enabled=true`)
 
 ## Build
 
@@ -38,9 +38,23 @@ mvn clean package
 
 ## Load
 
+### OTel Collector only (default — no DD Agent needed)
+
 ```bash
 java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
   -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar \
+  -Dotel.service.name=my-service \
+  -jar my-app.jar
+```
+
+DSM Traces work via span attributes (`dsm.transaction.id`) flowing through OTel Collector → Datadog.
+
+### Full DSM export (requires DD Agent)
+
+```bash
+java -javaagent:/opt/otel/opentelemetry-javaagent.jar \
+  -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar \
+  -Ddsm.export.enabled=true \
   -Ddsm.agent.url=http://localhost:8126 \
   -Dotel.service.name=my-service \
   -jar my-app.jar
