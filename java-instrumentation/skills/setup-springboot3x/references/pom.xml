@@ -41,6 +41,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Use PropertiesLauncher to support -Dloader.path for external JARs -->
+                    <layout>ZIP</layout>
+                </configuration>
             </plugin>
         </plugins>
     </build>
