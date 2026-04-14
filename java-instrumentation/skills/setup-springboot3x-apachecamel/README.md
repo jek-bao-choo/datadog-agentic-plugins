@@ -34,6 +34,18 @@ JSON in (from Component B)
 - Component D running on port 8084 (from `setup-springboot3x`)
 - SSH access: `ssh -i ~/.ssh/jek_rsa_pem ec2-user@<EC2_PUBLIC_IP>`
 
+## Step 0: Verify Component D is running
+
+Component C forwards XML to Component D on port 8084. Verify D is running before starting C:
+
+```bash
+curl -sf http://localhost:8084/health
+```
+
+Expected: `{"status":"healthy","service":"jek-otel-java-springboot3x","port":8084}`
+
+If Component D is not running, go back to `setup-springboot3x` and start it first.
+
 ## Step 1: Copy source to EC2
 
 From your local machine (in the `setup-springboot3x-apachecamel` skill directory):
@@ -113,13 +125,31 @@ grep "80/20 BRANCH" /tmp/component-c.log | tail -10
 
 Should show a mix of `PRISTINE pass-through` and `MUTATED transaction_id` entries.
 
+## Battle-tested lesson: bridgeEndpoint
+
+The Camel HTTP producer requires `?bridgeEndpoint=true` on the target URL:
+
+```java
+.to("http://localhost:8084/jek-receive-xml?bridgeEndpoint=true");
+```
+
+Without this, every request fails with:
+```
+IllegalArgumentException: Invalid url: /jek-process.
+If you are forwarding/bridging http endpoints, then enable the bridgeEndpoint option
+```
+
+This happens because Camel's HTTP component tries to use the incoming request URI (`/jek-process`) as the outgoing path, overriding the target URL. `bridgeEndpoint=true` tells Camel to use the URL as-is.
+
 ## Troubleshooting
 
 | Issue | Fix |
 |---|---|
+| `IllegalArgumentException: Invalid url` | Add `?bridgeEndpoint=true` to the `.to()` URL in EsbRoute.java |
 | Port 8083 in use | `pkill -f springboot3x-camel` |
 | Component D not reachable | Verify Component D is running: `curl http://localhost:8084/health` |
 | Build fails on Camel deps | Ensure Maven can reach Maven Central (internet access) |
+| All requests return 500 | Check `/tmp/component-c.log` — may be 20% fault injection or Camel route error |
 
 ## Teardown
 

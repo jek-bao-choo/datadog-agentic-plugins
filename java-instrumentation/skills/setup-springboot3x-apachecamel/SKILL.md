@@ -4,6 +4,7 @@ description: >-
   Build and run a Spring Boot 3.4 + Apache Camel ESB mock (Component C). Receives JSON,
   transforms to XML (simulating IBM webMethods), generates houseway_bill_id, executes
   80/20 probabilistic branching, and forwards XML to Component D. 20% fault injection.
+  Battle-tested: requires bridgeEndpoint=true on Camel HTTP producer.
 version: 0.1.0
 version_matrix:
   java_version: [17]
@@ -22,13 +23,16 @@ Build and run the ESB integration hub that mocks IBM webMethods. Transforms JSON
 
 ## Tech Stack
 
-| Component | Version |
+| Component | Confirmed Version |
 |---|---|
 | Spring Boot | 3.4.5 |
 | Apache Camel | 4.10.3 |
-| Java | OpenJDK 17 |
+| Java | OpenJDK 17.0.18 LTS |
+| Maven | 3.6.3 |
 | Port | 8083 |
 | Service name | jek-otel-java-springboot3x-camel |
+| Fault injection | 20% on all endpoints except /health |
+| 80/20 branching | 80% pristine, 20% mutates IDs with MUTATED- prefix |
 
 ## Endpoints
 
@@ -36,6 +40,16 @@ Build and run the ESB integration hub that mocks IBM webMethods. Transforms JSON
 |---|---|---|
 | POST | `/jek-process` | Receives JSON, transforms to XML, forwards to Component D |
 | GET | `/health` | Health check |
+
+## Key battle-tested lesson
+
+The Camel HTTP producer requires `bridgeEndpoint=true` when forwarding to another HTTP endpoint:
+
+```java
+.to("http://localhost:8084/jek-receive-xml?bridgeEndpoint=true");
+```
+
+Without this, Camel throws `IllegalArgumentException: Invalid url` because it tries to use the incoming request URI as the outgoing URL.
 
 ## Build
 
@@ -52,3 +66,7 @@ curl -X POST http://localhost:8083/jek-process \
   -H "Content-Type: application/json" \
   -d '{"transaction_id": "test-tx-001", "airway_bill_id": "test-awb-001"}'
 ```
+
+## Next Step
+
+Instrument with `springboot3x-otel-java-tool-opt` for zero-touch OTel agent injection.
