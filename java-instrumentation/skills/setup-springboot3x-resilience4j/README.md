@@ -68,7 +68,12 @@ This produces `target/springboot3x-r4j-0.0.1-SNAPSHOT.jar`.
 
 ## Step 3: Run the application
 
-If `JAVA_TOOL_OPTIONS` is set (from `springboot3x-otel-java-tool-opt`), the OTel agent loads automatically — no `-javaagent` needed.
+If `JAVA_TOOL_OPTIONS` is set (from `springboot3x-otel-java-tool-opt`), the OTel agent AND extensions load automatically — no `-javaagent` needed. Ensure JAVA_TOOL_OPTIONS includes the full flags (agent + DSM extension + loader.path + header capture). See the `springboot3x-otel-java-tool-opt` skill for the complete configuration.
+
+**Where does `transaction_id` appear in span attributes?**
+- On **Component D**: extracted from the XML body by the XML attribute extractor extension (loaded via `-Dloader.path`)
+- On **Components B and C**: captured from the HTTP request header via `-Dotel.instrumentation.http.server.capture-request-headers=transaction_id`
+- For this to work, the caller must send `transaction_id` as an **HTTP header** (in addition to the JSON body)
 
 ```bash
 cd /opt/cargostream/component-b

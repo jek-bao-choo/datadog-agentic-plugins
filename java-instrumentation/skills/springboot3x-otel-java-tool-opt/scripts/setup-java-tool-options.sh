@@ -29,12 +29,12 @@ sudo tee /etc/profile.d/otel-java.sh > /dev/null <<EOF
 # OTel Java agent auto-injection — equivalent to Dynatrace LD_PRELOAD
 # Every Java process on this host picks up the agent automatically.
 # Per-app service name: set OTEL_SERVICE_NAME env var or spring.application.name property.
-export JAVA_TOOL_OPTIONS="-javaagent:${OTEL_AGENT_PATH} -Dotel.exporter.otlp.endpoint=${COLLECTOR_ENDPOINT} -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp"
+export JAVA_TOOL_OPTIONS="-javaagent:${OTEL_AGENT_PATH} -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar -Dloader.path=/opt/otel/extensions/ -Dotel.exporter.otlp.endpoint=${COLLECTOR_ENDPOINT} -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp -Dotel.instrumentation.http.server.capture-request-headers=transaction_id -Dotel.instrumentation.http.server.capture-response-headers=transaction_id"
 EOF
 
 # For non-login shells (systemd services)
 if ! grep -q "JAVA_TOOL_OPTIONS" /etc/environment 2>/dev/null; then
-  echo "JAVA_TOOL_OPTIONS=\"-javaagent:${OTEL_AGENT_PATH} -Dotel.exporter.otlp.endpoint=${COLLECTOR_ENDPOINT} -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp\"" | sudo tee -a /etc/environment > /dev/null
+  echo "JAVA_TOOL_OPTIONS=\"-javaagent:${OTEL_AGENT_PATH} -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar -Dloader.path=/opt/otel/extensions/ -Dotel.exporter.otlp.endpoint=${COLLECTOR_ENDPOINT} -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp -Dotel.instrumentation.http.server.capture-request-headers=transaction_id -Dotel.instrumentation.http.server.capture-response-headers=transaction_id\"" | sudo tee -a /etc/environment > /dev/null
 fi
 
 echo ""

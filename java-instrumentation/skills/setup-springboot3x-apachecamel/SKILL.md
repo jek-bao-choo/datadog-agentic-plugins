@@ -67,6 +67,10 @@ curl -X POST http://localhost:8083/jek-process \
   -d '{"transaction_id": "test-tx-001", "airway_bill_id": "test-awb-001"}'
 ```
 
+## OTel instrumentation
+
+Reuse `springboot3x-otel-java-tool-opt` — JAVA_TOOL_OPTIONS (with extensions + header capture) set system-wide. `transaction_id` captured via HTTP header. See that skill for full configuration.
+
 ## Next Step
 
-Instrument with `springboot3x-otel-java-tool-opt` for zero-touch OTel agent injection.
+Set up `springboot3x-otel-java-tool-opt` for zero-touch OTel agent injection, then build Component B with `setup-springboot3x-resilience4j`.

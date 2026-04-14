@@ -158,6 +158,10 @@ pkill -f springboot3x-camel 2>/dev/null
 rm -rf /opt/cargostream/component-c
 ```
 
+## OTel instrumentation
+
+This app is instrumented via `JAVA_TOOL_OPTIONS` (from `springboot3x-otel-java-tool-opt`). Ensure the full flags are set (agent + DSM extension + loader.path + header capture). The `transaction_id` appears as a span attribute via HTTP header capture (`-Dotel.instrumentation.http.server.capture-request-headers=transaction_id`).
+
 ## Next Step
 
-Proceed to `springboot3x-otel-java-tool-opt` to instrument with the OTel Java agent using JAVA_TOOL_OPTIONS (zero-touch injection).
+Proceed to `springboot3x-otel-java-tool-opt` to set up JAVA_TOOL_OPTIONS system-wide, then instrument Component B with `setup-springboot3x-resilience4j`.

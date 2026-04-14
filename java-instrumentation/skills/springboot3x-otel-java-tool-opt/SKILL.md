@@ -38,6 +38,22 @@ sudo ./scripts/setup-java-tool-options.sh
 # Restart your Java app — it's now instrumented
 ```
 
+## Full JAVA_TOOL_OPTIONS (battle-tested)
+
+```
+-javaagent:/opt/otel/opentelemetry-javaagent.jar
+-Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar
+-Dloader.path=/opt/otel/extensions/
+-Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318
+-Dotel.exporter.otlp.protocol=http/protobuf
+-Dotel.logs.exporter=otlp
+-Dotel.metrics.exporter=otlp
+-Dotel.instrumentation.http.server.capture-request-headers=transaction_id
+-Dotel.instrumentation.http.server.capture-response-headers=transaction_id
+```
+
+Extensions are optional — basic instrumentation works without them. Add when you need custom span attributes or DSM.
+
 ## Comparison: Dynatrace vs OTel vs Datadog
 
 | Aspect | Dynatrace LD_PRELOAD | OTel JAVA_TOOL_OPTIONS | Datadog SSI |

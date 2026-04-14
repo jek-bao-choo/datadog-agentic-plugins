@@ -52,7 +52,7 @@ mvn clean package -DskipTests
 
 ## OTel instrumentation
 
-Reuse `springboot3x-otel-java-tool-opt` — JAVA_TOOL_OPTIONS already set system-wide. Just start the app and the agent loads automatically.
+Reuse `springboot3x-otel-java-tool-opt` — JAVA_TOOL_OPTIONS (with extensions + header capture) already set system-wide. Just start the app and the agent + extensions load automatically. `transaction_id` appears as span attribute via HTTP header capture.
 
 ## Next Step
 

@@ -73,7 +73,8 @@ ls -lh /opt/otel/opentelemetry-javaagent.jar
 ```bash
 sudo tee /etc/profile.d/otel-java.sh > /dev/null <<'EOF'
 # OTel Java agent auto-injection — equivalent to Dynatrace LD_PRELOAD
-export JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp"
+# Includes: agent, DSM extension, XML attribute extractor, header capture
+export JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar -Dloader.path=/opt/otel/extensions/ -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp -Dotel.instrumentation.http.server.capture-request-headers=transaction_id -Dotel.instrumentation.http.server.capture-response-headers=transaction_id"
 EOF
 ```
 
@@ -88,7 +89,7 @@ EOF
 ### 2b. For non-login shells (systemd services, cron jobs)
 
 ```bash
-echo 'JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp"' | sudo tee -a /etc/environment
+echo 'JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar -Dotel.javaagent.extensions=/opt/otel/extensions/otel-dsm-extension-1.0.jar -Dloader.path=/opt/otel/extensions/ -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp -Dotel.instrumentation.http.server.capture-request-headers=transaction_id -Dotel.instrumentation.http.server.capture-response-headers=transaction_id"' | sudo tee -a /etc/environment
 ```
 
 #### What does `| sudo tee -a /etc/environment` do?
@@ -106,6 +107,22 @@ source /etc/profile.d/otel-java.sh
 echo $JAVA_TOOL_OPTIONS
 # Should show: -javaagent:/opt/otel/opentelemetry-javaagent.jar ...
 ```
+
+### What each flag does
+
+| Flag | Purpose |
+|---|---|
+| `-javaagent:/opt/otel/opentelemetry-javaagent.jar` | Attaches OTel agent — auto-instruments Spring MVC, HTTP clients, Logback, JVM |
+| `-Dotel.javaagent.extensions=.../otel-dsm-extension-1.0.jar` | Loads DSM extension — computes pathway hashes, sets `dsm.transaction.id` on spans |
+| `-Dloader.path=/opt/otel/extensions/` | Adds XML attribute extractor to Spring Boot classpath — extracts `transaction_id`, `airway_bill_id`, `houseway_bill_id` from XML bodies as span attributes |
+| `-Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318` | Sends telemetry to local OTel Collector (use `127.0.0.1` not `localhost` — IPv6 issue) |
+| `-Dotel.exporter.otlp.protocol=http/protobuf` | OTLP HTTP protocol |
+| `-Dotel.logs.exporter=otlp` | Exports Logback logs via OTLP for trace-log correlation |
+| `-Dotel.metrics.exporter=otlp` | Exports JVM runtime metrics via OTLP |
+| `-Dotel.instrumentation.http.server.capture-request-headers=transaction_id` | Captures `transaction_id` from incoming HTTP request headers as span attributes |
+| `-Dotel.instrumentation.http.server.capture-response-headers=transaction_id` | Captures `transaction_id` from outgoing HTTP response headers as span attributes |
+
+**Note**: The extensions are optional. Basic instrumentation (traces, metrics, logs) works with just the agent + OTLP flags. Add the extensions when you need custom span attributes or DSM.
 
 ---
 
