@@ -1,0 +1,89 @@
+# Custom JMX metrics for Apache Camel 4.x
+# Deployed to /opt/otel/camel-jmx-metrics.yaml
+# Loaded via: -Dotel.jmx.config=/opt/otel/camel-jmx-metrics.yaml
+#
+# These metrics go BEYOND what -Dotel.jmx.target.system=camel provides,
+# giving you finer-grained route-level and context-level visibility.
+#
+# Note: These custom metric names (e.g., camel.route.exchanges.completed) differ
+# from the predefined target names (e.g., camel.route.exchange.completed).
+# Both coexist in Datadog — the custom YAML adds metrics like min/max processing
+# time that the predefined target does not include.
+#
+# IMPORTANT format rules for OTel Java agent JMX metric insight:
+#   - Use "beans" (plural, as a YAML list), not "bean" (singular)
+#   - "unit" is MANDATORY for every metric — omitting it causes a parse error
+#   - Use {exchange}, {thread}, ms, s, By, etc. for units
+
+rules:
+  # ── Route-level metrics ──────────────────────────────────────────
+  # One set of metrics per Camel route (e.g., esb-json-to-xml-route)
+  - beans:
+      - org.apache.camel:context=*,type=routes,name=*
+    metricAttribute:
+      camel.context: param(context)
+      camel.route: param(name)
+    mapping:
+      ExchangesCompleted:
+        metric: camel.route.exchanges.completed
+        type: counter
+        unit: "{exchange}"
+        desc: Total completed exchanges on this route
+      ExchangesFailed:
+        metric: camel.route.exchanges.failed
+        type: counter
+        unit: "{exchange}"
+        desc: Total failed exchanges on this route
+      ExchangesInflight:
+        metric: camel.route.exchanges.inflight
+        type: gauge
+        unit: "{exchange}"
+        desc: Currently in-flight exchanges on this route
+      MeanProcessingTime:
+        metric: camel.route.processing_time.mean
+        type: gauge
+        unit: ms
+        desc: Mean processing time per exchange
+      LastProcessingTime:
+        metric: camel.route.processing_time.last
+        type: gauge
+        unit: ms
+        desc: Processing time of the last exchange
+      MaxProcessingTime:
+        metric: camel.route.processing_time.max
+        type: gauge
+        unit: ms
+        desc: Maximum processing time observed
+      MinProcessingTime:
+        metric: camel.route.processing_time.min
+        type: gauge
+        unit: ms
+        desc: Minimum processing time observed
+
+  # ── Context-level metrics ────────────────────────────────────────
+  # Aggregated across all routes in the Camel context
+  - beans:
+      - org.apache.camel:context=*,type=context,name=*
+    metricAttribute:
+      camel.context: param(name)
+    mapping:
+      ExchangesTotal:
+        metric: camel.context.exchanges.total
+        type: counter
+        unit: "{exchange}"
+        desc: Total exchanges across all routes
+      ExchangesFailed:
+        metric: camel.context.exchanges.failed
+        type: counter
+        unit: "{exchange}"
+        desc: Total failed exchanges across all routes
+      ExchangesInflight:
+        metric: camel.context.exchanges.inflight
+        type: gauge
+        unit: "{exchange}"
+        desc: Currently in-flight exchanges across all routes
+      UptimeMillis:
+        metric: camel.context.uptime
+        type: gauge
+        unit: ms
+        desc: Camel context uptime in milliseconds
