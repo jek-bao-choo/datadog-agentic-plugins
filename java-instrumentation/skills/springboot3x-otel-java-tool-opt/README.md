@@ -382,6 +382,126 @@ done
 | Multiple Java apps with same service name | Set `OTEL_SERVICE_NAME` per service via systemd override (Step 3 Option B) |
 | Don't know which Java processes are running | `ps aux \| grep java` shows all Java processes on the host |
 
+---
+
+## About the bundled scripts
+
+### What is `setup-java-tool-options.sh`?
+
+This script **automates Steps 1 and 2** in a single command. It:
+
+1. Downloads the OTel Java agent JAR to `/opt/otel/` (if not already there)
+2. Creates `/etc/profile.d/otel-java.sh` (for login shells)
+3. Adds `JAVA_TOOL_OPTIONS` to `/etc/environment` (for systemd services)
+
+```bash
+sudo ./scripts/setup-java-tool-options.sh
+# Optional: custom collector endpoint
+sudo ./scripts/setup-java-tool-options.sh http://otel-collector.internal:4318
+```
+
+**When to use it**: Quick setup for PoC or development. Run once, restart apps, done.
+
+### What is `remove-java-tool-options.sh`?
+
+This script **reverses everything** that `setup-java-tool-options.sh` did:
+
+1. Deletes `/etc/profile.d/otel-java.sh`
+2. Removes the `JAVA_TOOL_OPTIONS` line from `/etc/environment`
+3. Unsets `JAVA_TOOL_OPTIONS` in the current session
+
+```bash
+sudo ./scripts/remove-java-tool-options.sh
+# Then restart apps to stop the agent from loading
+```
+
+**When to use it**: When the PoC is over, when switching to a different agent (Datadog SSI), or when troubleshooting conflicts.
+
+**Note**: Neither script touches the agent JAR at `/opt/otel/opentelemetry-javaagent.jar` — it's left in place. Delete it manually if needed: `rm /opt/otel/opentelemetry-javaagent.jar`
+
+### Alternatives if the prospect doesn't want to use these scripts
+
+The scripts are convenience wrappers. If the prospect prefers not to run third-party scripts on their servers (common in enterprise environments), they can do everything manually:
+
+**Alternative 1: Manual setup (same steps, no script)**
+
+Follow Steps 1 and 2 in this README manually. The commands are the same ones the script runs — copy-paste from the README.
+
+**Alternative 2: Configuration management (Ansible, Puppet, Chef)**
+
+Add the environment variable through the prospect's existing configuration management:
+
+```yaml
+# Ansible example
+- name: Download OTel Java agent
+  get_url:
+    url: https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar
+    dest: /opt/otel/opentelemetry-javaagent.jar
+
+- name: Set JAVA_TOOL_OPTIONS system-wide
+  lineinfile:
+    path: /etc/environment
+    line: 'JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp"'
+    create: yes
+```
+
+**Alternative 3: Systemd drop-in (per-service, most controlled)**
+
+Instead of setting `JAVA_TOOL_OPTIONS` host-wide, set it only for the specific service:
+
+```bash
+sudo systemctl edit webmethods-is
+```
+
+Add:
+
+```ini
+[Service]
+Environment="JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar -Dotel.exporter.otlp.endpoint=http://127.0.0.1:4318 -Dotel.exporter.otlp.protocol=http/protobuf -Dotel.logs.exporter=otlp -Dotel.metrics.exporter=otlp"
+Environment="OTEL_SERVICE_NAME=webmethods-esb"
+```
+
+This approach:
+- Only affects that one service (not all Java processes)
+- Uses the standard systemd override mechanism
+- Survives service restarts and package updates
+- Is reversible: `sudo systemctl revert webmethods-is`
+
+**Alternative 4: Docker / container environment variable**
+
+If the app runs in Docker:
+
+```bash
+docker run -e JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar ..." \
+  -v /opt/otel:/opt/otel:ro \
+  my-java-app
+```
+
+Or in `docker-compose.yml`:
+
+```yaml
+services:
+  webmethods:
+    environment:
+      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar -Dotel.exporter.otlp.endpoint=http://otel-collector:4318 -Dotel.exporter.otlp.protocol=http/protobuf
+      - OTEL_SERVICE_NAME=webmethods-esb
+    volumes:
+      - /opt/otel:/opt/otel:ro
+```
+
+### Which alternative should the prospect use?
+
+| Prospect's environment | Recommended approach |
+|---|---|
+| PoC / dev / testing | Scripts (`setup-java-tool-options.sh`) or manual Steps 1-2 |
+| Enterprise with config management | Alternative 2 (Ansible/Puppet/Chef) |
+| Single app on the host | Alternative 3 (systemd drop-in) |
+| Multiple apps, different configs | Alternative 3 (one systemd drop-in per service) |
+| Containerized / Docker / K8s | Alternative 4 (container env var) |
+| Prospect won't run any scripts | Manual Steps 1-2 (copy-paste commands from README) |
+
+---
+
 ## Teardown
 
 ```bash
