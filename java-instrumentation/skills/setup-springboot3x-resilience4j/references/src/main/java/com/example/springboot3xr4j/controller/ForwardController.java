@@ -1,6 +1,7 @@
 package com.example.springboot3xr4j.controller;
 
 import com.example.springboot3xr4j.service.ComponentCClient;
+import io.opentelemetry.api.trace.Span;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,7 +28,12 @@ public class ForwardController {
         payload.put("airway_bill_id", awbId);
         payload.put("source", "component-b");
 
-        log.info("Forwarding — transaction_id={}, airway_bill_id={}", payload.get("transaction_id"), awbId);
+        // Set DSM attributes for Transaction Tracking
+        String txId = String.valueOf(payload.get("transaction_id"));
+        Span.current().setAttribute("dsm.transaction.id", txId);
+        Span.current().setAttribute("dsm.transaction.checkpoint", "component-b-incoming");
+
+        log.info("Forwarding — transaction_id={}, airway_bill_id={}", txId, awbId);
 
         // Forward to Component C with Resilience4j retry + circuit breaker
         return componentCClient.callComponentC(payload);

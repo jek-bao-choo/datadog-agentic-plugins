@@ -1,5 +1,6 @@
 package com.example.springboot3xcamel.route;
 
+import io.opentelemetry.api.trace.Span;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.model.dataformat.JsonLibrary;
@@ -62,6 +63,11 @@ public class EsbRoute extends RouteBuilder {
 
                     payload.put("source", "component-c");
                     payload.put("timestamp", Instant.now().toString());
+
+                    // Set DSM attributes for Transaction Tracking
+                    String txId = String.valueOf(payload.get("transaction_id"));
+                    Span.current().setAttribute("dsm.transaction.id", txId);
+                    Span.current().setAttribute("dsm.transaction.checkpoint", "component-c-incoming");
 
                     exchange.getIn().setBody(payload);
                 })
