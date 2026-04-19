@@ -1,0 +1,8 @@
+{
+  "name": "validation",
+  "version": "0.1.0",
+  "description": "Validate a prospect's tech stack before a Datadog PoC and generate sequenced prework TODO files",
+  "author": {
+    "name": "Jek Bao"
+  }
+}

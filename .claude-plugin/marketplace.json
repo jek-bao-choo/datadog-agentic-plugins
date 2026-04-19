@@ -11,7 +11,13 @@
       "name": "quickstart",
       "source": "./quickstart",
       "description": "Interactive Datadog PoC onboarding with auto-menu, MCP integration, live docs, and session documentation",
-      "version": "0.2.0"
+      "version": "0.3.0"
+    },
+    {
+      "name": "validation",
+      "source": "./validation",
+      "description": "Validate a prospect's tech stack before a Datadog PoC and generate sequenced prework TODO files",
+      "version": "0.1.0"
     },
     {
       "name": "aws-ec2",

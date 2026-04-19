@@ -23,9 +23,6 @@ On session start, it displays a welcome message guiding the user to the menu or 
 
 ## Skills
 
-### prework
-Gathers PoC requirements, tech stack details, and transaction flow from the user (via implementation guides, TMAPs, eval plans, or custom notes), then generates a set of sequenced TODO files with a manifest for bottom-up prework validation. Uses dummy prospect names to prevent accidental data leaks.
-
 ### fetching-datadog-docs
 Looks up Datadog product documentation, API references, feature configuration steps, and integration setup guides using Datadog's `llms.txt` index. Used as a fallback when MCP and web search are unavailable.
 

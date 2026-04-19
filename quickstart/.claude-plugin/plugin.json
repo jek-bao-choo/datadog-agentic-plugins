@@ -1,6 +1,6 @@
 {
   "name": "quickstart",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Interactive onboarding plugin that guides DevOps/SRE engineers through Datadog PoC setup — from session start to guided completion. Auto-displays a menu on startup, connects to Datadog MCP server when needed, and fetches live docs.",
   "author": {
     "name": "Jek Bao"

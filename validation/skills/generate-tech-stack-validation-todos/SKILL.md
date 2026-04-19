@@ -1,18 +1,20 @@
 ---
-name: prework
+name: generate-tech-stack-validation-todos
 description: >-
-  Use this skill whenever the user needs to plan and generate PoC prework TODO files
-  based on a prospect's tech stack, transaction flow, and PoC requirements. Triggers
-  on mentions of prework, PoC planning, evaluation plan, TMAP, implementation guide,
-  prospect tech stack analysis, transaction flow mapping, or generating TODO files for
-  a PoC engagement. Also applies when the user provides IMPLEMENTATION_GUIDE.md,
-  evalplan CSV, or TMAP spreadsheets and wants to turn them into actionable setup steps.
-version: 0.1.0
+  Use this skill whenever the user needs to validate a prospect's tech stack for
+  PoC prework — gathering tech stack and transaction flow, then generating
+  sequenced TODO files that replicate the stack layer-by-layer. Triggers on
+  mentions of tech stack validation, validate prospect tech stack, PoC prework,
+  PoC prework validation, generate prework TODOs, Datadog PoC planning, evaluation plan,
+  TMAP, implementation guide, prospect tech stack analysis, or transaction flow
+  mapping. Also applies when the user provides IMPLEMENTATION_GUIDE.md,
+  evalplan CSV, or TMAP spreadsheets and wants to turn them into actionable
+  prework validation steps.
 ---
 
-# PoC Prework — Gather Requirements and Generate TODO Files
+# Tech Stack Validation TODOs — Gather Requirements and Generate the Prework Run Sheet
 
-This skill gathers PoC requirements, tech stack details, and transaction flow information from the user, then generates a set of sequenced TODO files that replicate the prospect's environment for prework validation.
+This skill runs tech stack validation as PoC prework — gathering the prospect's tech stack and transaction flow, then generating a manifest and sequenced TODO files that replicate the prospect's environment layer-by-layer.
 
 ## Phase 1: Information Gathering
 
@@ -124,7 +126,7 @@ The manifest should include:
 
 ## Rules
 
-- **NEVER start prototyping without knowing the transaction flow sequence**
+- **NEVER start generating validation TODOs without knowing the transaction flow sequence**
 - **NEVER assume tech stack versions** — ask if not provided (unless user says "use latest")
 - **ALWAYS build bottom-up** — foundation layer (infra + database) before application layer before frontend layer
 - **ALWAYS reference existing TODO-*.md templates** — the generated files should be filled-in versions of these templates, not invented from scratch
