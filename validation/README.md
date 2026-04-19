@@ -1,0 +1,1 @@
+This plugin and its skills are to be used by me — a Datadog Sales Engineer — to prepare for a PoC by validating the tech stack based on the PoC requirements.
