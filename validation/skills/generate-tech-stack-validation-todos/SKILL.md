@@ -80,13 +80,15 @@ Always build from the lowest downstream service to the upstream. For the flow `W
    - Instrument with Datadog APM or RUM
    - Verify end-to-end trace propagation
 
+### Output Directory
+
+Generate all output files in the `validation/backlog/` folder (relative to the repo root — the `datadog-agentic-plugins` directory that contains the `validation/` plugin). Create the directory if it does not already exist. The folder is gitignored at the repo level, which ensures prospect-specific output is never accidentally committed.
+
 ### Output Files
 
-Generate the following files in the current working directory:
+1. **`validation/backlog/{dummy-name}-manifest.md`** — The execution manifest listing all TODO files in sequential order with dependencies. This is the "run sheet" for the PoC prework.
 
-1. **`{dummy-name}-manifest.md`** — The execution manifest listing all TODO files in sequential order with dependencies. This is the "run sheet" for the PoC prework.
-
-2. **`{dummy-name}-TODO-{plugin-name}.md`** files — One per plugin/layer, based on the existing `TODO-*.md` templates in each plugin directory. Each file is a concrete, filled-in version of the template with:
+2. **`validation/backlog/{dummy-name}-TODO-{plugin-name}.md`** files — One per plugin/layer, based on the existing `TODO-*.md` templates in each plugin directory. Each file is a concrete, filled-in version of the template with:
    - Specific versions, frameworks, and configurations from the prospect's tech stack
    - Specific naming using the `jek-` resource prefix
    - Specific infrastructure details (region, instance size, etc.)
@@ -103,15 +105,15 @@ The generated files should be filled-in, prospect-specific versions of these tem
 
 ### Example Output Structure
 
-For a prospect with flow: React Frontend → Spring Boot API → PostgreSQL (dummy name: `greenfield-42`):
+For a prospect with flow: React Frontend → Spring Boot API → PostgreSQL (dummy name: `greenfield`):
 
 ```
-greenfield-42-manifest.md                      # Execution run sheet
-greenfield-42-TODO-aws-ec2.md                  # 1. Provision EC2 for PostgreSQL
-greenfield-42-TODO-postgres-selfhosted.md      # 2. Install PostgreSQL, create tables, seed data, add DBM
-greenfield-42-TODO-aws-eks.md                  # 3. Provision EKS cluster
-greenfield-42-TODO-java-instrumentation.md     # 4. Deploy Spring Boot API, instrument with dd-trace-java
-greenfield-42-TODO-react-instrumentation.md    # 5. Deploy React frontend, instrument with Datadog RUM
+validation/backlog/greenfield-manifest.md                      # Execution run sheet
+validation/backlog/greenfield-TODO-aws-ec2.md                  # 1. Provision EC2 for PostgreSQL
+validation/backlog/greenfield-TODO-postgres-selfhosted.md      # 2. Install PostgreSQL, create tables, seed data, add DBM
+validation/backlog/greenfield-TODO-aws-eks.md                  # 3. Provision EKS cluster
+validation/backlog/greenfield-TODO-java-instrumentation.md     # 4. Deploy Spring Boot API, instrument with dd-trace-java
+validation/backlog/greenfield-TODO-react-instrumentation.md    # 5. Deploy React frontend, instrument with Datadog RUM
 ```
 
 ### Manifest Format
@@ -134,7 +136,7 @@ The manifest should include:
 
 ## Security: Prospect Name Handling
 
-- **ALWAYS use a dummy prospect name** for generated file names and resource prefixes — e.g., `helloworld-1`, `acme-corp`, `project-alpha`, `greenfield-42`. Generate a random one each time. Even if the user provides a real prospect name, replace it with a dummy name in ALL generated filenames and content.
-- **NEVER commit generated output to git.** The generated `{dummy-name}-manifest.md` and `{dummy-name}-TODO-*.md` files contain prospect-specific tech stack details. Ensure they are covered by `.gitignore`.
+- **ALWAYS use a dummy prospect name** for generated file names and resource prefixes — e.g., `helloworld`, `greenfield`. Generate a random one each time. Even if the user provides a real prospect name, replace it with a dummy name in ALL generated filenames and content.
+- **NEVER commit generated output to git.** The `validation/backlog/` folder is already covered by the repo's `.gitignore`, which keeps prospect-specific output private by default. Do not override this — do not `git add -f` files in `validation/backlog/`, and do not write output anywhere outside `validation/backlog/`.
 - **If the user provides file paths containing real prospect/company names**, read the files but do NOT echo the real company name into any generated output. Use the dummy name throughout.
 - **Real prospect name may be kept only in the user's head or private notes** — never in files that could be committed to a public GitHub repo.
