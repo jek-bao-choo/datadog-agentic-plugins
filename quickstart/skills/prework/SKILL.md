@@ -117,6 +117,7 @@ greenfield-42-TODO-react-instrumentation.md    # 5. Deploy React frontend, instr
 The manifest should include:
 - Dummy prospect name and date (never real prospect name)
 - Transaction flow diagram (ASCII)
+- Technical architecture diagram (ASCII)
 - Tech stack summary table (component → language/framework → version)
 - Sequential execution table: step number, TODO file, plugin, what it does, depends on
 - Pre-flight checklist: what credentials/access is needed before starting (Datadog API key, cloud provider credentials, SSH keys, etc.)
