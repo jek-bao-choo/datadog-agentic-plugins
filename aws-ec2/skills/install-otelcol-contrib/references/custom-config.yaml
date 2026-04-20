@@ -17,7 +17,9 @@ extensions:
     api:
       key: ${env:DD_API_KEY}
       site: ${env:DD_SITE}
-    hostname: ${env:CUSTOM_HOSTNAME}
+    # No `hostname` here either — the extension honors the `datadog.host.name`
+    # resource attribute from OTEL_RESOURCE_ATTRIBUTES (see the datadog/exporter
+    # comment above).
 
 receivers:
   otlp:
@@ -36,17 +38,42 @@ receivers:
         static_configs:
         - targets: ['0.0.0.0:8888']
 
-  # Host metrics — replaces Datadog Agent for infrastructure monitoring
+  # Host metrics — replaces Datadog Agent for infrastructure monitoring.
+  # `system.{cpu,memory,filesystem,paging}.utilization` are DISABLED by default
+  # in the contrib distro; they must be explicitly enabled so Datadog's host
+  # widgets (CPU usage %, Memory %, Filesystem %) can render from them.
   hostmetrics:
     collection_interval: 30s
     scrapers:
       cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+          system.cpu.physical.count:
+            enabled: true
+          system.cpu.logical.count:
+            enabled: true
+          system.cpu.frequency:
+            enabled: true
       disk:
       filesystem:
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
       load:
       memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+          system.memory.limit:
+            enabled: true
       network:
       paging:
+        metrics:
+          system.paging.utilization:
+            enabled: true
+          system.paging.usage:
+            enabled: true
       processes:
 
   # System logs — collect syslog and auth logs from the host
@@ -98,15 +125,45 @@ processors:
         os.type:
           enabled: true
 
-  # Convert cumulative metrics to delta (only needed for OTLP HTTP exporter option)
-  cumulativetodelta:
+  # Convert cumulative metrics to delta (only needed for OTLP HTTP exporter option).
+  # Datadog's OTLP metrics intake rejects cumulative temporality; the native
+  # datadog/exporter handles temporality internally, so this is unused on that path.
+  # Uncomment when switching pipelines to `otlp_http/dd_*`.
+  # cumulativetodelta:
+
+  # Rename collector self-telemetry metrics from Prometheus underscore convention
+  # (otelcol_process_cpu_seconds) to dot-separated form (otelcol.process.cpu.seconds).
+  # Datadog groups metrics into "apps" by the prefix before the first dot; without
+  # this rename, self-metrics land under `(no-namespace)`. Scoped to the
+  # `metrics/self` pipeline only so app/host metrics in the main pipeline stay
+  # untouched. The `$${1}` escape produces the literal `${1}` that metricstransform
+  # interprets as regex match-group 1 (single `$` would be consumed by the OTel
+  # config resolver looking for env-var expansions).
+  metricstransform/otelcol_self:
+    transforms:
+      - include: ^otelcol_(.*)$
+        match_type: regexp
+        action: update
+        new_name: otelcol.$${1}
+      - include: ^promhttp_(.*)$
+        match_type: regexp
+        action: update
+        new_name: promhttp.$${1}
 
 exporters:
   # =========================================================================
   # ACTIVE: Native Datadog exporter (full-fidelity service map, trace metrics)
   # =========================================================================
   datadog/exporter:
-    hostname: ${env:CUSTOM_HOSTNAME}
+    # No `hostname` field here. The Datadog-visible host is derived from the
+    # `datadog.host.name` resource attribute (Datadog's purpose-built override,
+    # preferred over `host.name`). Set it in the systemd env file:
+    #   OTEL_RESOURCE_ATTRIBUTES="datadog.host.name=your-host"
+    # The `env` resource detector picks it up and it survives alongside the
+    # system detector's OS hostname (which stays in `host.name`). Using
+    # `host.name=` instead does NOT work — the `system` detector's
+    # `resource_attributes.host.name.enabled: true` overwrites it with the OS
+    # hostname during merge.
     sending_queue:
       enabled: true
       num_consumers: 10
@@ -119,44 +176,50 @@ exporters:
     host_metadata:
       enabled: true
       hostname_source: config_or_system
-      tags:
-        - env:sandbox
-        - owner:jek
+      # Host-level tags are driven by OTEL_RESOURCE_ATTRIBUTES in the systemd
+      # env file (via Datadog's OTel SemConv mapping: deployment.environment
+      # -> env:, service.version -> version:, etc.). No hardcoded tags here.
 
   # =========================================================================
-  # COMMENTED OUT: OTLP HTTP exporters (restore by uncommenting below
-  # and switching pipeline exporters to otlphttp/dd_*)
+  # COMMENTED OUT: OTLP HTTP exporters (vendor-neutral alternative).
+  # Datadog's OTLP HTTP intake accepts metrics/logs (GA) and traces (preview),
+  # but DOES NOT populate the Infrastructure Host List — so the host's
+  # "Metrics → Apps" panel stays empty. Prefer `datadog/exporter` above.
+  #
+  # To restore this path:
+  #   1. Uncomment the three blocks below and the `cumulativetodelta:` processor.
+  #   2. In service.pipelines, swap exporters to `otlp_http/dd_*` and add
+  #      `cumulativetodelta` to `metrics.processors`.
   # =========================================================================
-  otlp_http/dd_traces:
-    traces_endpoint: "https://otlp.${env:DD_SITE}/v1/traces"
-    headers:
-      dd-api-key: ${env:DD_API_KEY}
-      dd-otlp-source: "datadog"
-    sending_queue:
-      batch: {} # Default batch settings
-  
-  otlp_http/dd_metrics:
-    metrics_endpoint: "https://otlp.${env:DD_SITE}/v1/metrics"
-    # metrics_endpoint: "https://otlp.${env:DD_SITE}/api/v2/otlpmetrics"
-    headers:
-      dd-api-key: ${env:DD_API_KEY}
-      dd-otel-metric-config: >-
-        {
-        "resource_attributes_as_tags": true,
-        "instrumentation_scope_metadata_as_tags": true
-        }
-    compression: zstd
-    compression_params:
-      level: 3 # Level must be set explicitly for zstd
-    sending_queue:
-      batch: {} # Default batch settings
-  
-  otlp_http/dd_logs:
-    logs_endpoint: "https://otlp.${env:DD_SITE}/v1/logs"
-    headers:
-      dd-api-key: ${env:DD_API_KEY}
-    sending_queue:
-      batch: {} # Default batch settings
+  # otlp_http/dd_traces:
+  #   traces_endpoint: "https://otlp.${env:DD_SITE}/v1/traces"
+  #   headers:
+  #     dd-api-key: ${env:DD_API_KEY}
+  #     dd-otlp-source: "datadog"
+  #   sending_queue:
+  #     batch: {} # Default batch settings
+  #
+  # otlp_http/dd_metrics:
+  #   metrics_endpoint: "https://otlp.${env:DD_SITE}/v1/metrics"
+  #   headers:
+  #     dd-api-key: ${env:DD_API_KEY}
+  #     dd-otel-metric-config: >-
+  #       {
+  #       "resource_attributes_as_tags": true,
+  #       "instrumentation_scope_metadata_as_tags": true
+  #       }
+  #   compression: zstd
+  #   compression_params:
+  #     level: 3 # Level must be set explicitly for zstd
+  #   sending_queue:
+  #     batch: {} # Default batch settings
+  #
+  # otlp_http/dd_logs:
+  #   logs_endpoint: "https://otlp.${env:DD_SITE}/v1/logs"
+  #   headers:
+  #     dd-api-key: ${env:DD_API_KEY}
+  #   sending_queue:
+  #     batch: {} # Default batch settings
 
   # Debug exporter — for troubleshooting during setup
   debug:
@@ -203,19 +266,26 @@ service:
       exporters: [datadog/connector]
     traces/2:
       receivers: [datadog/connector]
-      # exporters: [datadog/exporter, debug]
-      exporters: [otlp_http/dd_traces, debug]
+      exporters: [datadog/exporter, debug]
+      # exporters: [otlp_http/dd_traces, debug]
     metrics:
-      receivers: [otlp, prometheus, hostmetrics, datadog/connector]
-      # receivers: [otlp, hostmetrics, datadog/connector]
-      # processors: [resourcedetection]
-      # exporters: [datadog/exporter]
-      processors: [resourcedetection, cumulativetodelta]
-      exporters: [otlp_http/dd_metrics]
+      receivers: [otlp, hostmetrics, datadog/connector]
+      processors: [resourcedetection]
+      exporters: [datadog/exporter]
+      # processors: [resourcedetection, cumulativetodelta]
+      # exporters: [otlp_http/dd_metrics]
+    # Self-monitoring pipeline: scrape the collector's internal prometheus
+    # endpoint (0.0.0.0:8888, exposed by service.telemetry.metrics.readers)
+    # and ship those metrics to Datadog on an isolated pipeline so self-
+    # telemetry doesn't mix with app/host metrics.
+    metrics/self:
+      receivers: [prometheus]
+      processors: [resourcedetection, metricstransform/otelcol_self]
+      exporters: [datadog/exporter]
     logs:
       receivers: [otlp, filelog/system]
       processors: [resourcedetection]
-      # exporters: [datadog/exporter]
-      exporters: [otlp_http/dd_logs]
+      exporters: [datadog/exporter]
+      # exporters: [otlp_http/dd_logs]
   
   extensions: [health_check, pprof, zpages, file_storage, datadog]
