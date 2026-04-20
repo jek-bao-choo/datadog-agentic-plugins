@@ -640,6 +640,8 @@ sudo rpm -ivh otelcol-contrib_0.150.1_linux_amd64.rpm
 
 sudo journalctl -u otelcol-contrib
 
+sudo journalctl -u otelcol-contrib -f
+
 /usr/bin/otelcol-contrib --help
 
 sudo systemctl status otelcol-contrib

@@ -28,13 +28,13 @@ receivers:
         endpoint: 0.0.0.0:4318
 
   # Collect own metrics
-  # prometheus:
-  #   config:
-  #     scrape_configs:
-  #     - job_name: 'otel-collector'
-  #       scrape_interval: 10s
-  #       static_configs:
-  #       - targets: ['0.0.0.0:8888']
+  prometheus:
+    config:
+      scrape_configs:
+      - job_name: 'otel-collector'
+        scrape_interval: 10s
+        static_configs:
+        - targets: ['0.0.0.0:8888']
 
   # Host metrics — replaces Datadog Agent for infrastructure monitoring
   hostmetrics:
@@ -136,7 +136,8 @@ exporters:
       batch: {} # Default batch settings
   
   otlp_http/dd_metrics:
-    metrics_endpoint: "https://otlp.${env:DD_SITE}/api/v2/otlpmetrics"
+    metrics_endpoint: "https://otlp.${env:DD_SITE}/v1/metrics"
+    # metrics_endpoint: "https://otlp.${env:DD_SITE}/api/v2/otlpmetrics"
     headers:
       dd-api-key: ${env:DD_API_KEY}
       dd-otel-metric-config: >-
@@ -177,21 +178,21 @@ service:
   telemetry:
     metrics:
       readers:
-        # - pull:
-        #     exporter:
-        #       prometheus:
-        #         host: '127.0.0.1'
-        #         port: 8888
-        #         without_scope_info: true
-        #         without_type_suffix: true
-        #         without_units: true
-        #         with_resource_constant_labels:
-        #           included: [ ]
-        - periodic:
+        - pull:
             exporter:
-              otlp:
-                protocol: http/protobuf
-                endpoint: http://localhost:4318
+              prometheus:
+                host: '127.0.0.1'
+                port: 8888
+                without_scope_info: true
+                without_type_suffix: true
+                without_units: true
+                with_resource_constant_labels:
+                  included: [ ]
+        # - periodic:
+        #     exporter:
+        #       otlp:
+        #         protocol: http/protobuf
+        #         endpoint: http://localhost:4318
 
   pipelines:
     # Traces flow: otlp → resourcedetection → datadog/connector → datadog/exporter
@@ -205,8 +206,8 @@ service:
       # exporters: [datadog/exporter, debug]
       exporters: [otlp_http/dd_traces, debug]
     metrics:
-      # receivers: [otlp, prometheus, hostmetrics, datadog/connector]
-      receivers: [otlp, hostmetrics, datadog/connector]
+      receivers: [otlp, prometheus, hostmetrics, datadog/connector]
+      # receivers: [otlp, hostmetrics, datadog/connector]
       # processors: [resourcedetection]
       # exporters: [datadog/exporter]
       processors: [resourcedetection, cumulativetodelta]
