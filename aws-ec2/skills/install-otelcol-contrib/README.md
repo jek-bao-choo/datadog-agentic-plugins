@@ -624,3 +624,19 @@ sudo systemctl disable otelcol-contrib
 sudo rpm -e otelcol-contrib
 sudo rm -rf /etc/otelcol-contrib /var/lib/otelcol-contrib
 ```
+
+---
+
+## Manual install
+
+```bash
+sudo yum update
+
+sudo yum -y install wget
+
+wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.150.1/otelcol-contrib_0.150.1_linux_amd64.rpm
+
+sudo rpm -ivh otelcol-contrib_0.150.1_linux_amd64.rpm
+
+cat /etc/otelcol-contrib/config.yaml
+```

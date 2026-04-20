@@ -1,3 +1,16 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol-contrib/storage
+  # Datadog extension — makes collector visible in Datadog Infrastructure and Fleet Automation
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    hostname: "jek-ec2-centos9"
+
 receivers:
   otlp:
     protocols:
@@ -53,6 +66,7 @@ processors:
 # Datadog Connector — computes APM stats (latency, error rates, request counts) from traces.
 # Powers service map edge metrics, APM service page, and latency histograms.
 # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector
+
 connectors:
   datadog/connector:
     traces:
@@ -106,19 +120,6 @@ exporters:
   # Debug exporter — for troubleshooting during setup
   debug:
     verbosity: basic
-
-extensions:
-  health_check:
-    endpoint: 0.0.0.0:13133
-  file_storage:
-    directory: /var/lib/otelcol-contrib/storage
-  # Datadog extension — makes collector visible in Datadog Infrastructure and Fleet Automation
-  # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/datadogextension/README.md
-  datadog:
-    api:
-      key: ${env:DD_API_KEY}
-      site: datadoghq.com
-    hostname: "jek-ec2-centos9"
 
 service:
   extensions: [health_check, file_storage, datadog]
