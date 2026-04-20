@@ -638,5 +638,29 @@ wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases
 
 sudo rpm -ivh otelcol-contrib_0.150.1_linux_amd64.rpm
 
+sudo journalctl -u otelcol-contrib
+
+/usr/bin/otelcol-contrib --help
+
+sudo systemctl status otelcol-contrib
+
+cat /etc/otelcol-contrib/otelcol-contrib.conf
+
+sudo vi /etc/otelcol-contrib/otelcol-contrib.conf
+
+# add DD_SITE and DD_API_KEY and modify it to use /etc/otelcol-contrib/custom-config.yaml
+
 cat /etc/otelcol-contrib/config.yaml
+
+sudo cp /etc/otelcol-contrib/config.yaml /etc/otelcol-contrib/custom-config.yaml
+
+sudo vi /etc/otelcol-contrib/custom-config.yaml
+
+# Modify from original-config.yaml to custom-config.yaml 
+
+otelcol-contrib validate --config=/etc/otelcol-contrib/custom-config.yaml
+
+sudo systemctl restart otelcol-contrib
+
+sudo systemctl status otelcol-contrib
 ```
