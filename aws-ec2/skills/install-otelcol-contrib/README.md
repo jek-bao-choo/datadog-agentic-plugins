@@ -30,8 +30,8 @@ The [Datadog Connector](https://github.com/open-telemetry/opentelemetry-collecto
 │                                                                              │
 │  LOGS ───────────────────────────────────────────────────────────────────    │
 │  otlp (:4317/4318) ──┐                                                      │
-│  filelog/system ──────┼→ resourcedetection ──→ datadog/exporter ──→ Datadog  │
-│                       ┘                                            Logs      │
+│  journald ────────────┼→ resourcedetection ──→ datadog/exporter ──→ Datadog  │
+│  (filelog/apps)       ┘                                            Logs      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,8 +55,8 @@ Sends standard OTLP to Datadog's ingest endpoints (`otlp.datadoghq.com`) — ven
 │                                                                              │
 │  LOGS ───────────────────────────────────────────────────────────────────    │
 │  otlp (:4317/4318) ──┐                                                      │
-│  filelog/system ──────┼→ resourcedetection ──→ otlphttp/dd_logs ──→ Datadog  │
-│                       ┘                                            Logs      │
+│  journald ────────────┼→ resourcedetection ──→ otlphttp/dd_logs ──→ Datadog  │
+│  (filelog/apps)       ┘                                            Logs      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,14 +71,14 @@ Sends standard OTLP to Datadog's ingest endpoints (`otlp.datadoghq.com`) — ven
 | Vendor neutrality | Datadog-specific components | Standard OTLP protocol only |
 | Hostname/tags | Set in exporter + extension | Set in extension only |
 
-Both options share the same receivers (`otlp`, `hostmetrics`, `filelog/system`), the `resourcedetection` processor, and the `datadog` extension for Fleet Automation.
+Both options share the same receivers (`otlp`, `hostmetrics`, `journald`), the `resourcedetection` processor, and the `datadog` extension for Fleet Automation.
 
 ### Simplified view — Datadog Exporter (Option B)
 
 ```
 TRACES:   otlp ──→ resourcedetection ──→ datadog/connector ──→ datadog/exporter ──→ Datadog
 METRICS:  otlp + hostmetrics + connector stats ──→ resourcedetection ──→ datadog/exporter ──→ Datadog
-LOGS:     otlp + filelog ──→ resourcedetection ──→ datadog/exporter ──→ Datadog
+LOGS:     otlp + journald ──→ resourcedetection ──→ datadog/exporter ──→ Datadog
 ```
 
 ### Simplified view — OTLP HTTP Exporter (Option A)
@@ -86,8 +86,17 @@ LOGS:     otlp + filelog ──→ resourcedetection ──→ datadog/exporter 
 ```
 TRACES:   otlp ──→ resourcedetection ──→ otlphttp/dd_traces ──→ Datadog
 METRICS:  otlp + hostmetrics ──→ resourcedetection ──→ cumulativetodelta ──→ otlphttp/dd_metrics ──→ Datadog
-LOGS:     otlp + filelog ──→ resourcedetection ──→ otlphttp/dd_logs ──→ Datadog
+LOGS:     otlp + journald ──→ resourcedetection ──→ otlphttp/dd_logs ──→ Datadog
 ```
+
+## Log collection strategy (non-root)
+
+The collector runs as user `otelcol-contrib`, not root. To get broad log coverage without giving the collector elevated privileges, we use a two-tier approach:
+
+- **Tier 1 — world-readable application logs** (no config change to the files). Any log file already at mode `644` (or group-readable to a group the collector is in) is readable as-is. Examples on CentOS Stream 9 out of the box: `/var/log/nginx/access.log`, `/var/log/httpd/access_log`, `/var/log/dnf.log`. Use the `filelog` receiver for these (a commented `filelog/apps` example is included in the config; uncomment and populate `include:` with your paths).
+- **Tier 2 — system logs via `journald`** (structured, no file tailing, no regex, rotation handled by systemd). Covers `/var/log/messages` + more: kernel, sshd, systemd unit logs, audit, user sessions. Requires adding `otelcol-contrib` to the `systemd-journal` group — a one-time, non-privileged operation (Step 5).
+
+We deliberately avoid tailing `/var/log/messages` with `filelog` because it's mode `0600` root-only on CentOS 9 — tailing it requires ongoing per-file ACL hacks that break on every `logrotate` run.
 
 ## Tech Stack
 
@@ -191,21 +200,24 @@ receivers:
       paging:
       processes:
 
-  filelog/system:
-    include:
-      - /var/log/messages
-      - /var/log/secure
-    include_file_name: true
-    include_file_path: true
+  # Tier 2 — system logs via systemd-journald (requires otelcol-contrib in the
+  # `systemd-journal` group; see Step 5). Omitting `directory:` lets
+  # journalctl pick the default location (runtime /run/log/journal and/or
+  # persistent /var/log/journal, auto-selected).
+  journald:
+    priority: info
     storage: file_storage
-    operators:
-      - type: regex_parser
-        regex: '^(?P<time>\w+ +\d+ \d+:\d+:\d+) (?P<host>\S+) (?P<ident>\S+?)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
-        severity:
-          parse_from: attributes.ident
-        timestamp:
-          parse_from: attributes.time
-          layout: '%b %d %H:%M:%S'
+
+  # Tier 1 — uncomment and populate for application logs that are already
+  # world-readable (mode 644+). Add this receiver to the logs pipeline below.
+  # filelog/apps:
+  #   include:
+  #     - /var/log/nginx/access.log
+  #     - /var/log/httpd/access_log
+  #     - /var/log/dnf.log
+  #   include_file_name: true
+  #   include_file_path: true
+  #   storage: file_storage
 
 processors:
   resourcedetection:
@@ -269,7 +281,8 @@ service:
       processors: [resourcedetection, cumulativetodelta]
       exporters: [otlphttp/dd_metrics]
     logs:
-      receivers: [otlp, filelog/system]
+      receivers: [otlp, journald]
+      # receivers: [otlp, journald, filelog/apps]  # when filelog/apps is enabled
       processors: [resourcedetection]
       exporters: [otlphttp/dd_logs]
 EOF
@@ -279,6 +292,7 @@ EOF
 - The `cumulativetodelta` processor is required because Datadog OTLP ingest only accepts delta metrics, but `hostmetrics` emits cumulative.
 - Hostname and tags are set via the `datadog` extension (not the exporter).
 - Each signal (traces, metrics, logs) has its own named exporter with signal-specific headers.
+- The `journald` receiver reads structured system logs from systemd; the collector user must be in the `systemd-journal` group (Step 5).
 
 ---
 
@@ -308,21 +322,24 @@ receivers:
       paging:
       processes:
 
-  filelog/system:
-    include:
-      - /var/log/messages
-      - /var/log/secure
-    include_file_name: true
-    include_file_path: true
+  # Tier 2 — system logs via systemd-journald (requires otelcol-contrib in the
+  # `systemd-journal` group; see Step 5). Omitting `directory:` lets
+  # journalctl pick the default location (runtime /run/log/journal and/or
+  # persistent /var/log/journal, auto-selected).
+  journald:
+    priority: info
     storage: file_storage
-    operators:
-      - type: regex_parser
-        regex: '^(?P<time>\w+ +\d+ \d+:\d+:\d+) (?P<host>\S+) (?P<ident>\S+?)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
-        severity:
-          parse_from: attributes.ident
-        timestamp:
-          parse_from: attributes.time
-          layout: '%b %d %H:%M:%S'
+
+  # Tier 1 — uncomment and populate for application logs that are already
+  # world-readable (mode 644+). Add this receiver to the logs pipeline below.
+  # filelog/apps:
+  #   include:
+  #     - /var/log/nginx/access.log
+  #     - /var/log/httpd/access_log
+  #     - /var/log/dnf.log
+  #   include_file_name: true
+  #   include_file_path: true
+  #   storage: file_storage
 
 processors:
   resourcedetection:
@@ -395,7 +412,8 @@ service:
       processors: [resourcedetection]
       exporters: [datadog/exporter]
     logs:
-      receivers: [otlp, filelog/system]
+      receivers: [otlp, journald]
+      # receivers: [otlp, journald, filelog/apps]  # when filelog/apps is enabled
       processors: [resourcedetection]
       exporters: [datadog/exporter]
 EOF
@@ -407,6 +425,7 @@ EOF
 - No `cumulativetodelta` processor needed — the Datadog exporter handles temporality automatically.
 - Hostname and tags are set in both `datadog/exporter` and the `datadog` extension. They **must match**.
 - Uses `sending_queue` for exporter-level batching — no batch processor needed ([why?](https://github.com/open-telemetry/opentelemetry.io/pull/9088)).
+- The `journald` receiver reads structured system logs from systemd; the collector user must be in the `systemd-journal` group (Step 5).
 
 ---
 
@@ -429,20 +448,36 @@ sudo chmod 600 /etc/otelcol-contrib/otelcol-contrib.conf
 
 Replace `<YOUR_DD_API_KEY>` with your actual Datadog API key.
 
-## Step 5: Enable system log collection
+## Step 5: Enable system log collection (Tier 2)
 
-The collector runs as user `otelcol-contrib`, which doesn't have permission to read system log files by default. Grant read access:
+The `journald` receiver reads the systemd journal via `journalctl`. Access is gated by membership in the `systemd-journal` group (a standard, non-privileged reader group on CentOS Stream 9 / RHEL 9). Add the collector user:
 
 ```bash
-# Grant read access to system logs
-sudo setfacl -m u:otelcol-contrib:r /var/log/messages /var/log/secure
+# Grant non-root read access to the systemd journal
+sudo usermod -a -G systemd-journal otelcol-contrib
 
-# Create storage directory for filelog checkpoint (tracks where the reader left off)
+# Create storage directory for receiver checkpoints (where readers left off)
 sudo mkdir -p /var/lib/otelcol-contrib/storage
 sudo chown otelcol-contrib:otelcol-contrib /var/lib/otelcol-contrib/storage
 ```
 
-If `setfacl` is not available, use: `sudo chmod o+r /var/log/messages /var/log/secure`
+The group change takes effect on the next service start (Step 6) — no logout required because systemd reapplies supplementary groups when the unit restarts.
+
+### (Optional) Enable persistent journal storage
+
+By default on CentOS Stream 9, journald uses runtime-only storage under `/run/log/journal/` — logs are lost on reboot. The `journald` receiver works against runtime storage, so this step is only needed if you want logs to survive reboots:
+
+```bash
+sudo mkdir -p /var/log/journal
+sudo systemd-tmpfiles --create --prefix /var/log/journal
+sudo systemctl restart systemd-journald
+```
+
+**Why group membership instead of a file ACL?** `/var/log/messages` and `/var/log/secure` are mode `0600` root-only. A per-file ACL (`setfacl`) would break every time `logrotate` rotates the file. The `systemd-journal` group + `journald` receiver avoids that failure mode entirely: journald handles rotation itself, and the collector keeps reading across rotations.
+
+### (Optional) Tier 1 — application log files
+
+If your application writes world-readable log files (mode 644+), enable the `filelog/apps` receiver in Step 3's config: uncomment the block, list your paths under `include:`, and add `filelog/apps` to the `logs` pipeline's receivers list. No group change or ACL needed — the collector reads them as any unprivileged user would.
 
 ## Step 6: Start the service
 
@@ -461,7 +496,7 @@ sudo systemctl status otelcol-contrib
 You should see `Active: active (running)`. The logs should show:
 - `Starting GRPC server` on port 4317
 - `Starting HTTP server` on port 4318
-- `Started watching file` for `/var/log/messages` and `/var/log/secure`
+- `Started watching journal at /var/log/journal` (from the journald receiver)
 - `Everything is ready. Begin running and processing data.`
 
 If it fails, check the logs:
@@ -545,7 +580,7 @@ Expected: `{"partialSuccess":{}}`
 
 1. **Traces**: Go to APM > Traces. Search for `service:jek-otel-test`. You should see the `test-span-verify` span with host `jek-ec2-centos9`.
 
-2. **Logs**: Go to Logs. Search for `service:jek-otel-test`. You should see the test log message. Also search `host:jek-ec2-centos9` for system logs from `/var/log/messages` and `/var/log/secure`.
+2. **Logs**: Go to Logs. Search for `service:jek-otel-test` for the manual test log. Search `host:jek-ec2-centos9` for system logs pulled from journald (ssh sessions, systemd unit activity, kernel messages, etc.).
 
 3. **Host metrics**: Go to Infrastructure > Host Map. Find `jek-ec2-centos9`. The Host Info tab should show CPU, memory, filesystem metrics. Tags should show `env:sandbox` and `owner:jek`.
 
@@ -605,9 +640,11 @@ sudo journalctl -u otelcol-contrib -n 50 --no-pager
 
 ### No logs in Datadog
 
-- Check the collector can read log files: `sudo -u otelcol-contrib cat /var/log/messages | head -1`
-- If "Permission denied": re-run `sudo setfacl -m u:otelcol-contrib:r /var/log/messages /var/log/secure`
-- Check collector logs for filelog errors: `sudo journalctl -u otelcol-contrib | grep filelog`
+- Check `otelcol-contrib` is in the `systemd-journal` group: `id otelcol-contrib` should list `systemd-journal` under `groups=`. If missing, re-run `sudo usermod -a -G systemd-journal otelcol-contrib && sudo systemctl restart otelcol-contrib`.
+- Confirm persistent journal storage exists: `sudo ls /var/log/journal/` should show at least one machine-id directory. If it's empty/missing, journald is running in runtime-only mode — enable persistence with `sudo mkdir -p /var/log/journal && sudo systemd-tmpfiles --create --prefix /var/log/journal && sudo systemctl restart systemd-journald`.
+- Prove the collector can read the journal: `sudo -u otelcol-contrib journalctl -n 1 --no-pager` should print a log line (not `No journal files were found`).
+- Check collector logs for receiver errors: `sudo journalctl -u otelcol-contrib | grep -iE "journald|filelog"`.
+- If you enabled `filelog/apps` and it's not delivering, confirm those paths are world-readable: `ls -la /var/log/<your-app>.log` — mode should show `r` for `other`. If not, either change the app's umask/mode or add the collector to the file's group.
 
 ### Hostname shows as EC2 instance ID instead of custom name
 
@@ -623,6 +660,8 @@ sudo systemctl stop otelcol-contrib
 sudo systemctl disable otelcol-contrib
 sudo rpm -e otelcol-contrib
 sudo rm -rf /etc/otelcol-contrib /var/lib/otelcol-contrib
+# Optional: remove the collector user from the systemd-journal group
+sudo gpasswd -d otelcol-contrib systemd-journal 2>/dev/null || true
 ```
 
 ---
@@ -660,9 +699,51 @@ sudo vi /etc/otelcol-contrib/custom-config.yaml
 
 # Modify from original-config.yaml to custom-config.yaml 
 
+# Enable Tier 2 log collection: add otelcol-contrib to the systemd-journal group
+sudo usermod -a -G systemd-journal otelcol-contrib
+
 otelcol-contrib validate --config=/etc/otelcol-contrib/custom-config.yaml
 
 sudo systemctl restart otelcol-contrib
 
 sudo systemctl status otelcol-contrib
+```
+
+## Manual Send Test Trace
+
+```bash
+TID=$(openssl rand -hex 16)
+SID=$(openssl rand -hex 8)
+NOW=$(date +%s%N)
+END=$(( NOW + 50000000 ))
+curl -sS -X POST http://localhost:4318/v1/traces \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceSpans":[{
+      "resource":{"attributes":[
+          {"key":"service.name","value":{"stringValue":"jek-trace-test"}},
+          {"key":"service.version","value":{"stringValue":"1.2.3"}},
+          {"key":"deployment.environment","value":{"stringValue":"sandbox"}},
+          {"key":"datadog.host.name","value":{"stringValue":"jek-centos9-v3"}}
+        ]},
+        "scopeSpans":[{
+          "scope":{"name":"manual-curl-test"},
+          "spans":[{
+            "traceId":"'$TID'",
+            "spanId":"'$SID'",
+            "name":"GET /hello",
+            "kind":2,
+            "startTimeUnixNano":"'$NOW'",
+            "endTimeUnixNano":"'$END'",
+            "attributes":[
+              {"key":"http.method","value":{"stringValue":"GET"}},
+              {"key":"http.route","value":{"stringValue":"/hello"}},
+              {"key":"http.status_code","value":{"intValue":200}}
+            ],
+            "status":{"code":1}
+          }]
+        }]
+      }]
+    }'
+echo
 ```

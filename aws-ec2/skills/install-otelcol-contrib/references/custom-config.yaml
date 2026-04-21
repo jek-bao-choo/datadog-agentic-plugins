@@ -76,22 +76,42 @@ receivers:
             enabled: true
       processes:
 
-  # System logs — collect syslog and auth logs from the host
-  filelog/system:
-    include:
-      - /var/log/messages
-      - /var/log/secure
-    include_file_name: true
-    include_file_path: true
+  # ------------------------------------------------------ #
+  # Tier 2 — system logs via systemd-journald. Reads structured records
+  # directly (no file tailing, no regex, no ACL hack, rotation handled
+  # by journald itself). A superset of /var/log/messages: kernel, sshd,
+  # unit logs, audit, user sessions. Requires the collector's systemd
+  # user to be in the `systemd-journal` group (standard log-reader group
+  # on CentOS Stream 9 / RHEL 9):
+  #   sudo usermod -a -G systemd-journal otelcol-contrib
+  #   sudo systemctl restart otelcol-contrib
+  journald:
+    # No `directory:` — let journalctl pick the default location (runtime
+    # /run/log/journal and/or persistent /var/log/journal, auto-selected).
+    # Set `directory: /var/log/journal` if you want to restrict to persistent
+    # storage only.
+    priority: info
     storage: file_storage
-    operators:
-      - type: regex_parser
-        regex: '^(?P<time>\w+ +\d+ \d+:\d+:\d+) (?P<host>\S+) (?P<ident>\S+?)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
-        severity:
-          parse_from: attributes.ident
-        timestamp:
-          parse_from: attributes.time
-          layout: '%b %d %H:%M:%S'
+    # Optional — restrict to specific units (omit to collect everything):
+    # units:
+    #   - sshd.service
+    #   - rsyslog.service
+    #   - systemd.service
+
+  # ------------------------------------------------------ #
+  # Tier 1 — filelog for application log files that are already
+  # world-readable (mode 644+). No special permissions needed for these.
+  # Uncomment and populate `include:` with your app's log paths.
+  # filelog/apps:
+  #   include:
+  #     - /var/log/nginx/access.log
+  #     - /var/log/nginx/error.log
+  #     - /var/log/httpd/access_log
+  #     - /var/log/httpd/error_log
+  #     - /var/log/dnf.log
+  #   include_file_name: true
+  #   include_file_path: true
+  #   storage: file_storage
 
 processors:
   resourcedetection:
@@ -283,7 +303,8 @@ service:
       processors: [resourcedetection, metricstransform/otelcol_self]
       exporters: [datadog/exporter]
     logs:
-      receivers: [otlp, filelog/system]
+      receivers: [otlp, journald]
+      # receivers: [otlp, journald, filelog/apps]  # add filelog/apps when enabled
       processors: [resourcedetection]
       exporters: [datadog/exporter]
       # exporters: [otlp_http/dd_logs]
