@@ -61,3 +61,44 @@ This script automatically generates trace data from the last 5 minutes, so it wi
 ### Security Note
 - Add `.env` to your `.gitignore` to avoid committing credentials
 - Use `.env.example` as a template for others to set up their own credentials
+
+---
+
+
+## Manual Send Test Trace through OTel Collector
+```bash
+TID=$(openssl rand -hex 16)
+SID=$(openssl rand -hex 8)
+NOW=$(date +%s%N)
+END=$(( NOW + 50000000 ))
+curl -sS -X POST http://localhost:4318/v1/traces \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceSpans":[{
+      "resource":{"attributes":[
+          {"key":"service.name","value":{"stringValue":"jek-trace-test"}},
+          {"key":"service.version","value":{"stringValue":"1.2.3"}},
+          {"key":"deployment.environment","value":{"stringValue":"sandbox"}},
+          {"key":"datadog.host.name","value":{"stringValue":"jek-centos9-v3"}}
+        ]},
+        "scopeSpans":[{
+          "scope":{"name":"manual-curl-test"},
+          "spans":[{
+            "traceId":"'$TID'",
+            "spanId":"'$SID'",
+            "name":"GET /hello",
+            "kind":2,
+            "startTimeUnixNano":"'$NOW'",
+            "endTimeUnixNano":"'$END'",
+            "attributes":[
+              {"key":"http.method","value":{"stringValue":"GET"}},
+              {"key":"http.route","value":{"stringValue":"/hello"}},
+              {"key":"http.status_code","value":{"intValue":200}}
+            ],
+            "status":{"code":1}
+          }]
+        }]
+      }]
+    }'
+echo
+```
