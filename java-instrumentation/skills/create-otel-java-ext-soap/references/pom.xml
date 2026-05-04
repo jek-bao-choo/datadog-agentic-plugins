@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>otel-extension-soap-tid</artifactId>
+    <version>1.0</version>
+    <name>OTel Extension — SOAP TID Outbound Interceptor</name>
+    <description>
+        Spring Boot auto-configuration library that registers a CXF
+        AbstractPhaseInterceptor on the OUT chain to capture &lt;TID&gt; from the
+        outgoing SOAP envelope and attach it as a `tid` OTel span attribute.
+        No application code changes needed.
+    </description>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <opentelemetry.version>1.48.0</opentelemetry.version>
+        <cxf.version>4.0.5</cxf.version>
+    </properties>
+
+    <dependencies>
+        <!-- OTel API — bundled (shaded) into the JAR because Spring Boot's
+             PropertiesLauncher classloader cannot see classes injected into
+             the bootstrap classloader by the OTel agent. Compile scope, NOT
+             provided. -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>${opentelemetry.version}</version>
+        </dependency>
+
+        <!-- CXF JAX-WS frontend + transport — provided by the consuming app
+             at runtime (the app already depends on cxf-rt-frontend-jaxws).
+             We compile against these but DO NOT bundle them. -->
+        <dependency>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-rt-frontend-jaxws</artifactId>
+            <version>${cxf.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-core</artifactId>
+            <version>${cxf.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring Boot auto-configuration support — provided by the app -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <version>3.4.5</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J for the auto-config's startup log line — provided -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.13</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+            <!-- Shade plugin: bundle compile-scope deps (OTel API) into the
+                 final JAR. Provided-scope deps (CXF, Spring Boot, SLF4J) are
+                 excluded. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>shade</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
