@@ -338,19 +338,10 @@ print('GPU matmul OK:', z.shape, '|', torch.cuda.get_device_name(0))
 
 Expected: `GPU matmul OK: torch.Size([4096, 4096]) | NVIDIA L4`
 
----
-
-## Step 9 — Make PyTorch activation persistent (optional)
-
-Auto-activate the venv on every SSH login:
-
-```bash
-echo "source /opt/pytorch/bin/activate" >> ~/.bashrc
+8g. Deactivate
 ```
-
-Next SSH session will start with `(pytorch)` already active.
-
-> 💡 **Caveat**: If you'll install ML tools that manage their own Python environments (e.g., Unsloth, conda envs), you may want to skip this and activate manually only when you need PyTorch directly.
+deactivate
+```
 
 ---
 
@@ -442,42 +433,6 @@ Even with quota, the AZ might be out of GPU capacity.
 2. Try a different region.
 3. Try Spot pricing (50–70% cheaper, can be reclaimed).
 4. Use **Capacity Blocks for ML** for guaranteed capacity at a planned start time.
-
----
-
-## Optional: Datadog GPU monitoring (DCGM)
-
-If you want full per-GPU observability — utilization, memory, temp, ECC errors, NVLink throughput — overlay the Datadog Agent with the DCGM integration.
-
-### Quick install (Ubuntu, ARM or x86)
-
-1. Install Datadog Agent:
-   ```bash
-   DD_API_KEY=<your_api_key> DD_SITE="datadoghq.com" \
-     bash -c "$(curl -L https://install.datadoghq.com/scripts/install_script_agent7.sh)"
-   ```
-
-2. Install NVIDIA DCGM:
-   ```bash
-   sudo apt-get update
-   sudo apt-get install -y datacenter-gpu-manager
-   sudo systemctl enable --now nvidia-dcgm
-   ```
-
-3. Enable the DCGM check in Datadog Agent config:
-   ```bash
-   sudo tee /etc/datadog-agent/conf.d/dcgm.d/conf.yaml > /dev/null <<EOF
-   init_config:
-   instances:
-     - openmetrics_endpoint: http://localhost:9400/metrics
-   EOF
-   sudo systemctl restart datadog-agent
-   ```
-
-4. Verify in Datadog:
-   - **Infrastructure → Hosts** → find the host → check the **GPU** tab.
-   - **Metrics Explorer** → search `dcgm.*` → metrics should be populating.
-   - The default **NVIDIA DCGM** dashboard auto-populates.
 
 ---
 
