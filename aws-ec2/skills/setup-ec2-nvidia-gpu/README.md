@@ -1,6 +1,6 @@
 # AWS GPU Instance Setup Guide (via Console GUI)
 
-A step-by-step guide for spinning up a GPU dev/test instance on AWS using AWS's graphical user interface, based on hands-on troubleshooting in `ap-southeast-1` (Singapore). Captures the working path **and** the traps to avoid.
+A step-by-step guide for spinning up a GPU dev/test instance on AWS using the AWS Console. Based on hands-on troubleshooting that ended with a working `g6.2xlarge` (NVIDIA L4) box in Sydney. Captures the working path **and** the traps to avoid.
 
 ---
 
@@ -17,18 +17,22 @@ Stand up a working NVIDIA GPU box on AWS EC2 with:
 
 ## Working configuration (reference)
 
-This is what successfully landed a working GPU box end-to-end:
+This is the configuration that landed a clean working GPU box end-to-end:
 
 | | |
 |---|---|
-| **Region** | `ap-southeast-1` (Singapore) |
-| **Instance type** | `g5g.2xlarge` (8 vCPU, 16 GB RAM, 1 × NVIDIA T4G, 16 GB VRAM) |
+| **Region** | `ap-southeast-2` (Sydney) |
+| **Instance type** | `g6.2xlarge` (8 vCPU, 32 GiB RAM, 1 × NVIDIA L4, 24 GB VRAM) |
 | **AMI** | Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.10 (Ubuntu 24.04) |
-| **Architecture** | 64-bit (Arm) |
+| **AMI ID** | `ami-0eedcdaccbf97de8a` (x86_64) |
+| **Architecture** | 64-bit (x86) |
 | **Username** | `ubuntu` |
-| **PyTorch location** | `/opt/pytorch/` (Python venv) |
-| **Storage** | 150 GB gp3 |
-| **Approx. cost** | ~$0.78/hr running, ~$0.02/hr stopped (EBS only) |
+| **PyTorch location** | `/opt/pytorch/` (Python venv, Python 3.13) |
+| **PyTorch version** | `2.10.0+cu130` |
+| **Storage** | 200 GB gp3 |
+| **Approx. cost** | ~$1.27/hr running, ~$0.02/hr stopped (EBS only) |
+
+> 💡 **Region note for APJ users**: `g6` is **not available in `ap-southeast-1` (Singapore)** at the time of this guide. Use `ap-southeast-2` (Sydney, ~95 ms latency from SG) or `ap-northeast-1` (Tokyo, ~70 ms). For other GPU types, always verify regional availability before committing.
 
 ---
 
@@ -40,12 +44,14 @@ The instance type drives everything else (AMI compatibility, region availability
 
 | Family | GPU | VRAM | CPU arch | When to pick |
 |---|---|---|---|---|
-| `g5g.2xlarge` | NVIDIA T4G | 16 GB | ARM (Graviton2) | Cheapest GPU box, ARM-native workloads, models ≤ 7B params |
+| `g5g.2xlarge` | NVIDIA T4G | 16 GB | ARM (Graviton2) | Cheapest GPU box, ARM-native workloads, smaller models. ⚠️ Many ML libraries lack aarch64 wheels |
 | `g5.2xlarge` | NVIDIA A10G | 24 GB | x86 (AMD) | Standard dev box, models ≤ 13B params, SDXL inference |
-| `g6.2xlarge` | NVIDIA L4 | 24 GB | x86 (AMD) | Newer-gen alternative to g5, similar VRAM |
+| `g6.2xlarge` | NVIDIA L4 | 24 GB | x86 (AMD) | Newer-gen alternative to g5, Ada Lovelace (sm_89), best for modern ML libs |
 | `g6e.2xlarge` | NVIDIA L40S | 48 GB | x86 (AMD) | Larger models (30B FP16), bigger context windows |
 
 > ⚠️ **Naming trap**: `g5g` (with the second `g`) is **ARM Graviton + T4G** — completely different from `g5` (x86 + A10G). The `g` is not for "GPU"; it's for "Graviton". Easy mistake.
+
+> ⚠️ **ARM compatibility**: Many modern ML libraries (Unsloth, some torch extensions, etc.) don't ship aarch64 Linux wheels. If you plan to use anything beyond raw PyTorch, default to **x86 instances** (`g5.*`, `g6.*`, `g6e.*`) — not `g5g`.
 
 ### Multi-GPU options (if you need more total VRAM)
 
@@ -53,7 +59,7 @@ The instance type drives everything else (AMI compatibility, region availability
 |---|---|---|---|
 | `g5.12xlarge` | 4 × A10G | 96 GB | Distributed inference, model parallelism |
 | `g6e.12xlarge` | 4 × L40S | 192 GB | Larger model fine-tuning |
-| `p4d.24xlarge` | 8 × A100 40GB | 320 GB | Sold as 8-GPU node only, ~$32/hr |
+| `p4d.24xlarge` | 8 × A100 40GB | 320 GB | Sold as 8-GPU node only, ~$33/hr |
 | `p5.48xlarge` | 8 × H100 | 640 GB | Full HGX H100 supercomputer node |
 
 ---
@@ -62,9 +68,9 @@ The instance type drives everything else (AMI compatibility, region availability
 
 1. Go to <https://console.aws.amazon.com> and sign in.
 2. **Top-right corner**, click the region selector.
-3. Choose your target region.
-   - For APJ: `ap-southeast-1` (Singapore), `ap-southeast-2` (Sydney), or `ap-northeast-1` (Tokyo).
-   - For US: `us-east-1` (Virginia) or `us-west-2` (Oregon) — largest GPU capacity.
+3. Choose your target region. **Verify your target instance type is available there before committing.**
+   - For APJ: `ap-southeast-2` (Sydney) and `ap-northeast-1` (Tokyo) have the broadest GPU coverage. `ap-southeast-1` (Singapore) is missing several types including `g6`.
+   - For US: `us-east-1` (Virginia) or `us-west-2` (Oregon) — largest GPU capacity, lowest prices.
 4. Confirm the URL or top bar reflects the right region. Everything from here is regional.
 
 ---
@@ -84,38 +90,42 @@ Steps:
 2. Left sidebar: **AWS services** → search **Amazon Elastic Compute Cloud (Amazon EC2)** → click.
 3. Search the relevant quota name from the table above.
 4. Look at **Applied account-level quota value**:
-   - Need at least the vCPU count of your target instance (e.g., `g5g.2xlarge` needs 8).
+   - Need at least the vCPU count of your target instance (e.g., `g6.2xlarge` needs 8).
    - If insufficient, click the quota → **Request increase at account level** → enter desired value → submit.
    - G-family approvals usually within hours. P-family can take days; route through your AWS account team if available.
 
-> 💡 The **AWS default quota value** for new accounts is often 0. The **Applied account-level quota** is what actually applies to your account. They can differ significantly.
+> 💡 **Quotas are regional.** A quota of 768 vCPUs in `ap-southeast-1` does not transfer to `ap-southeast-2`. Re-check after switching regions.
+
+> 💡 **Utilization field**: If the quota page shows non-zero utilization but you don't remember launching anything, check EC2 → Instances for forgotten boxes. Saves money.
 
 ---
 
-## Step 3 — Verify regional availability (optional but smart)
+## Step 3 — Verify regional availability (do this — it matters)
+
+This step is critical. AWS region docs sometimes lag actual availability, and not all GPU types exist in all regions.
 
 1. EC2 Console → left sidebar → **Instance types**.
-2. Filter on your target type (e.g., `g5g.2xlarge`).
-3. If empty: instance type not in this region. Switch regions or pick a different family.
+2. Filter on your target type (e.g., `g6.2xlarge`).
+3. If empty: instance type not in this region. **Switch regions** — don't waste time trying to launch something AWS won't sell you here.
 4. If present: click → **Networking** tab → see which AZs offer it. Note these for Step 5.
 
-> ⚠️ Region availability ≠ capacity. AWS may list a region as "available" but specific AZs run out. If launch fails with `InsufficientInstanceCapacity`, retry in a different AZ or region.
+> ⚠️ Region availability ≠ capacity. AWS may list an instance as "available" but specific AZs run out. If launch fails with `InsufficientInstanceCapacity`, retry in a different AZ or region.
 
 ---
 
 ## Step 4 — Create a key pair
 
-You need this for SSH. Key pairs are **regional** — one created in `us-east-1` won't work in `ap-southeast-1`.
+You need this for SSH. Key pairs are **regional** — one created in `us-east-1` won't work in `ap-southeast-2`.
 
 1. EC2 Console → left sidebar (Network & Security) → **Key Pairs**.
-2. **Create key pair**.
-3. Name: descriptive (e.g., `gpu-sg-key`).
+2. **Create key pair** (or reuse an existing key pair if you have one in this region).
+3. Name: descriptive with region (e.g., `gpu-syd-key`). Region in the name helps you keep them straight.
 4. Type: **RSA**.
 5. Format: **.pem** (macOS/Linux) or **.ppk** (Windows + PuTTY).
 6. **Create key pair** — file downloads automatically. **Save it; you can't re-download.**
 7. On macOS/Linux:
    ```bash
-   chmod 400 ~/Downloads/gpu-sg-key.pem
+   chmod 400 ~/Downloads/gpu-syd-key.pem
    ```
 
 ---
@@ -126,7 +136,7 @@ You need this for SSH. Key pairs are **regional** — one created in `us-east-1`
 
 ### 5a. Name and tags
 
-- Name: descriptive (e.g., `gpu-sg-dev`).
+- Name: descriptive (e.g., `gpu-syd-dev`, `unsloth-syd`).
 
 ### 5b. AMI selection — the critical step
 
@@ -139,32 +149,34 @@ This is where most setups go wrong. Multiple traps here.
    ```
    Deep Learning OSS Nvidia Driver AMI GPU PyTorch
    ```
-3. Pick the right variant — **this depends on your instance architecture**:
 
-| Your instance | Architecture | DLAMI to pick |
-|---|---|---|
-| `g5g.*` | ARM | **Ubuntu 24.04** DLAMI (only ARM variant available) |
-| `g5.*`, `g6.*`, `g6e.*`, `p4*`, `p5*` | x86 | **Ubuntu 22.04** DLAMI |
+3. **Don't pick by Ubuntu version alone — read the AMI description.** AWS publishes multiple variants of the same DLAMI name, and which instance families each variant supports varies by region and by AMI listing.
 
-> ⚠️ **AMI architecture trap**: The Ubuntu 24.04 DLAMI is currently **ARM-only**. Selecting it forces the architecture dropdown to "64-bit (Arm)", which then filters the instance type dropdown to only show ARM-compatible instances (`g5g`, `p6e-GB200`). If you want an x86 instance like `g5.2xlarge`, you must use the Ubuntu 22.04 DLAMI.
-
-4. After selecting, **verify these fields before continuing**:
+4. After selecting any candidate AMI, **verify these fields before continuing**:
 
 | Field | Expected value |
 |---|---|
 | **AMI ID** | Recent date (within last few weeks) |
 | **Architecture** | Matches your intended instance (Arm for `g5g`, x86 for everything else) |
 | **Username** | **`ubuntu`** ← critical smoke test. If it says `ec2-user` or `root`, you're on the wrong AMI. |
-| **Description** | Mentions PyTorch, CUDA, NVIDIA driver |
-| **"Supported EC2 instances"** | Should list your target instance family |
+| **Description "Supported EC2 instances"** | Must list your target instance family explicitly (e.g., `G6` for `g6.2xlarge`) |
 
 > 🚨 **If `Username` is anything other than `ubuntu`, stop and re-select.** Past mistakes have landed RHEL 10 or Amazon Linux 2023 instances with no GPU drivers. The `ubuntu` username is the simplest verification that you're on a real Ubuntu DLAMI.
+
+> 🚨 **Read the "Supported EC2 instances" list carefully.** The same-named "Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.10 (Ubuntu 24.04)" listing in Singapore showed only `G5g, P6e-GB200` (ARM-only). The same-named listing in Sydney showed `G4dn, G5, G6, Gr6, G6e, P4d, P4de, P5, P5e, P5en, P6-B200` (broad x86). The Ubuntu version doesn't tell you which architectures the AMI supports — only the description does.
+
+5. If the dropdown doesn't list a DLAMI that supports your target instance, click **Browse more AMIs** at the top of the AMI tile row. Filter by:
+   - **Architecture**: x86_64 (or arm64 if launching `g5g`)
+   - Owner alias: amazon
+   - Search: `Deep Learning OSS Nvidia Driver AMI GPU PyTorch`
+   Pick the most recent version where the description's Supported instances list includes your target family.
 
 ### 5c. Instance type
 
 1. Click the dropdown.
-2. If your target type doesn't appear: the AMI isn't compatible. Go back to 5b and pick a different AMI.
-3. Confirm specs match expectations (vCPU, RAM, GPU count).
+2. Type your target type (e.g., `g6.2xlarge`).
+3. If it doesn't appear: the AMI isn't compatible. Go back to 5b and pick a different AMI.
+4. Confirm specs match expectations (vCPU, RAM, GPU count, hourly price).
 
 ### 5d. Key pair
 
@@ -175,25 +187,28 @@ Select the key pair from Step 4.
 Click **Edit** on the right side of the panel.
 
 1. **VPC**: default VPC is fine for dev.
-2. **Subnet**: pick one in an AZ from Step 3 if you checked.
+2. **Subnet**: pick one in an AZ from Step 3, or "No preference" to let AWS pick.
 3. **Auto-assign public IP**: **Enable** (so you can SSH in).
-4. **Firewall (security groups)**: **Create security group**.
-   - Name: `gpu-sg` (or similar).
-   - Description: `SSH for GPU dev box`.
-   - **Inbound rule 1** (pre-filled):
-     - Type: **SSH**
-     - Source type: **My IP** (auto-fills your current IP)
-   - Optional rules — add for tools you'll run:
-     - Jupyter: Custom TCP, port 8888, Source: My IP
-     - vLLM/Ollama: Custom TCP, port 8000, Source: My IP
-     - TensorBoard: Custom TCP, port 6006, Source: My IP
+4. **Firewall (security groups)**: pick one option:
+   - **Create new** if you don't have one in this region:
+     - Name: `gpu-syd-sg` (or similar with region in the name).
+     - **Inbound rule 1**:
+       - Type: **SSH**
+       - Source type: **My IP** (auto-fills your current IP)
+     - Optional rules — add for tools you'll run:
+       - Jupyter: Custom TCP, port 8888, Source: My IP
+       - vLLM/Ollama: Custom TCP, port 8000, Source: My IP
+       - TensorBoard: Custom TCP, port 6006, Source: My IP
+   - **Select existing** if you have one already (e.g., `jek-nsg-for-myip`):
+     - Verify it has the ports you need before launching.
+     - Security group rules can be edited live without restarting the instance.
 
-> ⚠️ **Never use `0.0.0.0/0` for SSH.** Locks the box to your IP only.
+> ⚠️ **Never use `0.0.0.0/0` for SSH.** Lock the box to your IP only.
 
 ### 5f. Storage
 
 1. Default root volume is 45 GB — too small for ML work.
-2. Change size to **150 GB** (or 200 GB if you'll pull large model weights).
+2. Change size to **200 GB** for a comfortable buffer (model weights + caches add up fast).
 3. Volume type: **gp3** (default; faster + cheaper than gp2).
 4. Leave IOPS (3000) and throughput (125 MB/s) at defaults.
 
@@ -211,7 +226,7 @@ Right-side **Summary** panel before clicking Launch:
 - Correct AMI (Username: ubuntu)
 - Correct key pair
 - Correct security group
-- Storage: 1 × 150 GB gp3
+- Storage: 1 × 200 GB gp3
 
 Click **Launch instance**.
 
@@ -236,7 +251,7 @@ If launch fails with `InsufficientInstanceCapacity`:
 ## Step 7 — SSH in
 
 ```bash
-ssh -i ~/Downloads/gpu-sg-key.pem ubuntu@<public-ipv4>
+ssh -i ~/Downloads/gpu-syd-key.pem ubuntu@<public-ipv4>
 ```
 
 Type `yes` to accept the host key fingerprint on first connect.
@@ -254,7 +269,7 @@ Run these in order:
 ```bash
 cat /etc/os-release | grep PRETTY_NAME
 ```
-Expected: `PRETTY_NAME="Ubuntu 22.04..."` or `PRETTY_NAME="Ubuntu 24.04..."`
+Expected: `PRETTY_NAME="Ubuntu 24.04..."` (or 22.04 depending on AMI).
 
 If you see `Red Hat`, `Amazon Linux`, or anything else → wrong AMI, terminate and restart.
 
@@ -264,8 +279,10 @@ If you see `Red Hat`, `Amazon Linux`, or anything else → wrong AMI, terminate 
 uname -m
 ```
 
-- `aarch64` for ARM instances (`g5g.*`)
 - `x86_64` for x86 instances (`g5.*`, `g6.*`, `g6e.*`, `p4*`, `p5*`)
+- `aarch64` for ARM instances (`g5g.*`)
+
+If this doesn't match your intended instance type, the AMI is wrong.
 
 ### 8c. GPU detected by drivers
 
@@ -274,6 +291,12 @@ nvidia-smi
 ```
 
 Expected: A table showing your GPU, total memory, driver version, CUDA version, and `0%` utilization.
+
+For `g6.2xlarge` you should see:
+- GPU: **NVIDIA L4**
+- Memory: **23034 MiB** (~24 GB)
+- Driver: 580.x
+- CUDA Version: 13.0
 
 If `command not found`: the AMI has no NVIDIA drivers — you're on the wrong AMI.
 
@@ -293,9 +316,9 @@ Your prompt should change to `(pytorch) ubuntu@ip-...`.
 python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
-Expected output (example for T4G):
+Expected output for `g6.2xlarge`:
 ```
-2.10.0+cu130 True NVIDIA T4G
+2.10.0+cu130 True NVIDIA L4
 ```
 
 A `FutureWarning` about `pynvml` deprecation is harmless — ignore it.
@@ -313,7 +336,7 @@ print('GPU matmul OK:', z.shape, '|', torch.cuda.get_device_name(0))
 "
 ```
 
-Expected: `GPU matmul OK: torch.Size([4096, 4096]) | NVIDIA T4G`
+Expected: `GPU matmul OK: torch.Size([4096, 4096]) | NVIDIA L4`
 
 ---
 
@@ -327,6 +350,8 @@ echo "source /opt/pytorch/bin/activate" >> ~/.bashrc
 
 Next SSH session will start with `(pytorch)` already active.
 
+> 💡 **Caveat**: If you'll install ML tools that manage their own Python environments (e.g., Unsloth, conda envs), you may want to skip this and activate manually only when you need PyTorch directly.
+
 ---
 
 ## Step 10 — Cost management
@@ -338,7 +363,7 @@ GPU instances are expensive when idle. Always stop when not in use.
 EC2 Console → Instances → select → **Instance state** → **Stop instance**.
 
 - Compute: $0/hr while stopped
-- EBS storage: ~$0.08/GB/month for gp3 (~$12/month for 150 GB)
+- EBS storage: ~$0.08/GB/month for gp3 (~$16/month for 200 GB)
 - Public IP: changes on stop/start (unless you attach an Elastic IP)
 
 ### Start back up
@@ -356,17 +381,25 @@ When you're truly done: **Instance state** → **Terminate instance**. Releases 
 
 ---
 
-## Common gotchas (lessons learned)
+## Common gotchas (lessons learned the hard way)
 
-### 1. The ARM/x86 AMI trap
+### 1. Not all GPU instance types exist in all regions
 
-Selecting Ubuntu 24.04 DLAMI silently restricts you to ARM instances (`g5g`, `p6e-GB200`). If you want `g5`, `g6`, or `g6e`, you must use Ubuntu 22.04 DLAMI.
+`g6` does not exist in `ap-southeast-1` (Singapore) at the time of writing. Don't assume APJ regions are equivalent.
 
-**Symptom**: Instance type dropdown only shows `g5g.*` options. No `g5.*`, no `g6.*`.
+**Symptom**: Launch wizard's instance type dropdown doesn't show your target type even with the right AMI.
 
-**Fix**: Re-select the AMI as Ubuntu 22.04 DLAMI.
+**Fix**: Check **Step 3** before committing to a region. Use `ap-southeast-2` (Sydney) or `ap-northeast-1` (Tokyo) for broader GPU coverage in APJ.
 
-### 2. Wrong AMI silently substituted
+### 2. The DLAMI naming trap (Ubuntu version ≠ architecture)
+
+The same-named "Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.10 (Ubuntu 24.04)" can support different instance families depending on the region/listing. Don't assume a Ubuntu version means a specific architecture.
+
+**Symptom**: Selecting an AMI that "looks right" but the instance type dropdown only shows ARM instances (`g5g`, `p6e-GB200`).
+
+**Fix**: Always read the **Supported EC2 instances** list in the AMI description. It explicitly tells you which families that AMI variant supports.
+
+### 3. Wrong AMI silently substituted
 
 Sometimes selecting an AMI in the wizard doesn't actually persist if you change other settings. Past launches have ended up on RHEL 10 or Amazon Linux 2023 instead of the intended Ubuntu DLAMI.
 
@@ -374,7 +407,7 @@ Sometimes selecting an AMI in the wizard doesn't actually persist if you change 
 
 **Fix**: Always check the **Username field** in the AMI panel before launching. If it isn't `ubuntu`, the wrong AMI is selected. Terminate and restart.
 
-### 3. PyTorch isn't in system Python
+### 4. PyTorch isn't in system Python
 
 The DLAMI puts PyTorch in `/opt/pytorch/` venv. `python3 -c "import torch"` fails from a fresh shell.
 
@@ -382,15 +415,23 @@ The DLAMI puts PyTorch in `/opt/pytorch/` venv. `python3 -c "import torch"` fail
 
 **Fix**: `source /opt/pytorch/bin/activate` before running any Python that uses PyTorch.
 
-### 4. `g6e` listed as available but not actually launchable
+### 5. ARM instances break many ML libraries
+
+ARM Linux (`aarch64`) lacks wheels for many common ML libraries (`torchcodec`, parts of HuggingFace, Unsloth, etc.). The error looks like: `No solution found when resolving dependencies / has no wheels with a matching platform tag (e.g., manylinux_2_39_aarch64)`.
+
+**Symptom**: pip/uv install fails with `aarch64` or `arm64` platform tag errors.
+
+**Fix**: Don't use `g5g` for general ML work. Use `g5.*`, `g6.*`, or `g6e.*` (x86).
+
+### 6. `g6e` listed as available but not actually launchable
 
 AWS region docs sometimes list a region as supporting `g6e` but capacity hasn't rolled out to all accounts.
 
 **Symptom**: `g6e` doesn't appear in the instance type dropdown even with the right AMI; or appears but launch fails with capacity error.
 
-**Fix**: Check `EC2 Console → Instance types → filter g6e` to see if it's actually offered. If not, switch to `ap-northeast-1` (Tokyo) or downgrade to `g6.2xlarge` (L4, 24 GB VRAM).
+**Fix**: Check **Step 3** to see if it's actually offered. If not, switch to a region that has it (`us-east-1`, `ap-northeast-1`) or downgrade to `g6.2xlarge` (L4, 24 GB VRAM).
 
-### 5. Capacity errors on launch
+### 7. Capacity errors on launch
 
 Even with quota, the AZ might be out of GPU capacity.
 
@@ -453,11 +494,13 @@ If the working configuration above doesn't suit a specific need:
 
 ### Larger VRAM (single GPU)
 
-| Instance | GPU | VRAM | ~$/hr |
+| Instance | GPU | VRAM | ~$/hr (us-east-1) |
 |---|---|---|---|
 | `g5.2xlarge` | A10G | 24 GB | $1.21 |
 | `g6.2xlarge` | L4 | 24 GB | $0.98 |
 | `g6e.2xlarge` | L40S | 48 GB | $2.24 |
+
+> 💡 **Sydney pricing**: Roughly 20–30% above us-east-1. `g6.2xlarge` in Sydney is ~$1.27/hr vs $0.98 in Virginia.
 
 ### Multi-GPU training
 
@@ -472,17 +515,20 @@ If the working configuration above doesn't suit a specific need:
 
 ## Reference checklist (TL;DR)
 
-- [ ] Region selected (top-right)
+- [ ] Region selected (top-right) — verify your target instance type exists there
 - [ ] Quota verified (Service Quotas → "Running On-Demand G and VT instances" or "P instances")
-- [ ] Key pair created in this region
-- [ ] AMI: **Ubuntu** tile → DLAMI matching your architecture (22.04 for x86, 24.04 for ARM)
+- [ ] Capacity confirmed (EC2 → Instance types → filter your target type)
+- [ ] Key pair created (or reused) in this region
+- [ ] AMI: **Ubuntu** tile → DLAMI whose **Description's "Supported EC2 instances"** lists your target family
 - [ ] AMI panel shows **Username: ubuntu** ← critical check
+- [ ] AMI panel shows correct **Architecture** (x86 for `g5/g6/g6e/p4/p5`, Arm for `g5g`)
 - [ ] Instance type matches AMI architecture
 - [ ] Security group allows SSH from My IP only
-- [ ] Storage bumped to ≥150 GB gp3
+- [ ] Storage bumped to 200 GB gp3
 - [ ] Launch → wait for `2/2 checks passed`
 - [ ] SSH as `ubuntu@<ip>` (not `ec2-user`)
-- [ ] `nvidia-smi` works
+- [ ] `nvidia-smi` works (shows expected GPU model)
+- [ ] `uname -m` matches expected architecture
 - [ ] `source /opt/pytorch/bin/activate`
 - [ ] `python -c "import torch; print(torch.cuda.is_available())"` → `True`
 - [ ] (Optional) Add `source /opt/pytorch/bin/activate` to `~/.bashrc`
@@ -490,4 +536,4 @@ If the working configuration above doesn't suit a specific need:
 
 ---
 
-*Last updated based on hands-on testing in `ap-southeast-1`, 9 May 2026.*
+*Last updated based on hands-on testing in `ap-southeast-2` (Sydney), 10 May 2026.*
