@@ -82,5 +82,5 @@ To activate it on App A:
          'sudo journalctl -u otelcol-contrib --since "30 seconds ago" --no-pager | grep -A 2 "tid"'
 
 Full hand-off, including Datadog APM EU verification, is in
-load-otel-java-ext / Phase 7 of stonebraker-TODO-java-instrumentation.md.
+load-otel-java-ext / Phase 7 of demo-TODO-java-instrumentation.md.
 EOF

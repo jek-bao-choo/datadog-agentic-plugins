@@ -31,7 +31,7 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
-    private val BASE_URL = "https://34.8.246.70.nip.io"
+    private val BASE_URL = "https://203.0.113.70.nip.io"
     private val LOCAL_BASE_URL = "http://10.0.2.2:8080"
 
     private val localClient: OkHttpClient by lazy {
@@ -50,8 +50,8 @@ class HomeFragment : Fragment() {
         val sslContext = SSLContext.getInstance("TLS")
         sslContext.init(null, trustAllCerts, SecureRandom())
         OkHttpClient.Builder()
-            .addInterceptor(DatadogInterceptor.Builder(listOf("34.8.246.70.nip.io")).build())
-            .addNetworkInterceptor(TracingInterceptor.Builder(listOf("34.8.246.70.nip.io")).build())
+            .addInterceptor(DatadogInterceptor.Builder(listOf("203.0.113.70.nip.io")).build())
+            .addNetworkInterceptor(TracingInterceptor.Builder(listOf("203.0.113.70.nip.io")).build())
             .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
             .hostnameVerifier { _, _ -> true }
             .build()

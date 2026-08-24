@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config>
-        <domain includeSubdomains="true">34.8.246.70.nip.io</domain>
+        <domain includeSubdomains="true">203.0.113.70.nip.io</domain>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />

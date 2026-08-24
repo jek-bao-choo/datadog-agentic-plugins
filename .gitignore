@@ -36,6 +36,11 @@ __pycache__/
 # Java
 target/
 
+# Gradle / Android build artifacts and machine-specific config
+.gradle/
+build/
+local.properties
+
 # .NET
 bin/
 obj/
