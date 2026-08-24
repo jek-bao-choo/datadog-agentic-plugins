@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Bean;
  * (a singleton, lazily created). The consuming app's
  * `JaxWsProxyFactoryBean.create()` also uses the default Bus (when no
  * explicit Bus is set on the factory). Result: the interceptor is registered
- * on the same Bus the SOAP client uses — confirmed live in the stonebraker
+ * on the same Bus the SOAP client uses — confirmed live in the demo
  * PoC validation.
  *
  * Bean order: even if Spring creates this @Bean AFTER the consuming app's

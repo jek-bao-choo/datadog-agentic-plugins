@@ -80,7 +80,7 @@ exporter and in Datadog APM Trace Inspector.
 Confirm all of these before you start. The walkthrough assumes you've already
 executed:
 
-- [ ] **Layer 1** (`stonebraker-TODO-aws-ec2.md`) — EC2 host up, OTel
+- [ ] **Layer 1** (`demo-TODO-aws-ec2.md`) — EC2 host up, OTel
       Collector running, traces flowing to Datadog
 - [ ] **`setup-springboot3x-soap`** (App B / the webMethods mock) deployed at
       `/opt/cargostream/soap-server` and started in a session
@@ -223,8 +223,8 @@ sudo fuser -k 8083/tcp 2>/dev/null   # stop the running App A; ignore if none
 sleep 2
 . /etc/profile.d/otel-java.sh        # source JAVA_TOOL_OPTIONS (-javaagent + -Dloader.path)
 cd /opt/cargostream/soap-client
-OTEL_SERVICE_NAME=jek-springboot3x-soap-client-stonebraker \
-OTEL_RESOURCE_ATTRIBUTES=deployment.environment=jek-poc-stonebraker,datadog.host.name=jek-ec2-centos9-stonebraker \
+OTEL_SERVICE_NAME=jek-springboot3x-soap-client-demo \
+OTEL_RESOURCE_ATTRIBUTES=deployment.environment=jek-poc-demo,datadog.host.name=jek-ec2-centos9-demo \
 java -jar target/springboot3x-camel-soap-0.0.1-SNAPSHOT.jar
 ```
 
@@ -351,7 +351,7 @@ Confirmed working — captured screenshot from the live PoC shows `tid` as a
 span attribute in Datadog APM Trace Inspector:
 
 - Open `https://app.datadoghq.eu`
-- **APM → Traces** → search bar: `service:jek-springboot3x-soap-client-stonebraker`
+- **APM → Traces** → search bar: `service:jek-springboot3x-soap-client-demo`
   (substitute your service name if different)
 - Click any recent trace → click the span named `POST /jek-trigger` (or the
   parent span carrying the trigger)

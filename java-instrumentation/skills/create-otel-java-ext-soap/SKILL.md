@@ -202,7 +202,7 @@ on `tid:<value>` either way.
 
 After triggering with `tid-ext-success-1`, the trace shows up in
 `https://app.datadoghq.eu` → APM → Traces (filter
-`service:jek-springboot3x-soap-client-stonebraker`). Clicking into the trace
+`service:jek-springboot3x-soap-client-demo`). Clicking into the trace
 and scrolling the right-hand "Tags" panel of the `POST /jek-trigger` span
 displays:
 

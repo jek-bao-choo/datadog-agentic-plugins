@@ -554,7 +554,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
      | jq '{name: .name, state: .state, host: .host}'
 ```
 
-> Save the `host` value (e.g., `7.0.4.2`). This is the IP Apigee uses to reach your GKE backend.
+> Save the `host` value (e.g., `10.10.0.2`). This is the IP Apigee uses to reach your GKE backend.
 
 ### 3.5 Create Firewall Rules
 
@@ -771,7 +771,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
      }"
 ```
 
-> Current setup: LB IP `34.8.246.70` → hostname `34.8.246.70.nip.io`
+> Current setup: LB IP `203.0.113.70` → hostname `203.0.113.70.nip.io`
 
 **For production (using a real domain):**
 
@@ -787,14 +787,14 @@ apiproxy/
 ├── proxies/
 │   └── default.xml         # ProxyEndpoint (receives requests on /api)
 ├── targets/
-│   └── default.xml         # TargetEndpoint (forwards to GKE via PSC at 7.0.4.2)
+│   └── default.xml         # TargetEndpoint (forwards to GKE via PSC at 10.10.0.2)
 └── policies/               # (empty — add policies like VerifyAPIKey as needed)
 ```
 
 Key files:
 - `apiproxy/jek-apigee-api-v1.xml` — proxy name and base path (`/api`)
 - `apiproxy/proxies/default.xml` — incoming request routing
-- `apiproxy/targets/default.xml` — forwards to endpoint attachment host `http://7.0.4.2:80` (from Phase 3.4)
+- `apiproxy/targets/default.xml` — forwards to endpoint attachment host `http://10.10.0.2:80` (from Phase 3.4)
 
 **Alternative**: Use a target server for easier IP management:
 
@@ -807,7 +807,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
      "https://apigee.googleapis.com/v1/organizations/$ORG/environments/$APIGEE_ENV/targetservers" \
      -d '{
        "name": "gke-backend",
-       "host": "7.0.4.2",
+       "host": "10.10.0.2",
        "port": 80,
        "isEnabled": true
      }'

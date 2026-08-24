@@ -210,7 +210,7 @@ Open in your local browser:
 http://<your-public-ipv4>:8888
 ```
 
-For the Sydney working setup, that was `http://16.176.21.104:8888`.
+For the Sydney working setup, that was `http://203.0.113.10:8888`.
 
 **On first load:**
 1. You'll see the Unsloth Studio login page.

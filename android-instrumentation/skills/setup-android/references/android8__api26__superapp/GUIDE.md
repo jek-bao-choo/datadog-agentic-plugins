@@ -11,7 +11,7 @@ If the server is **not** instrumented, the trace headers are ignored and no corr
 
 ## What We Verified
 
-The remote server at `34.8.246.70.nip.io` does **not** return Datadog trace headers in its responses — it is not running `dd-java-agent`. This means:
+The remote server at `203.0.113.70.nip.io` does **not** return Datadog trace headers in its responses — it is not running `dd-java-agent`. This means:
 
 - RUM resources (network requests) are captured correctly
 - But clicking on a RUM resource shows **no correlated APM trace** in the Traces tab
@@ -46,5 +46,5 @@ To verify RUM-to-APM correlation end-to-end, we use a Spring Boot app deployed o
 
 | Button | Target | Server Instrumented? | RUM-to-APM Correlation? |
 |--------|--------|---------------------|------------------------|
-| Test API | `34.8.246.70.nip.io` | No | No |
+| Test API | `203.0.113.70.nip.io` | No | No |
 | Test API v2 | `10.0.2.2:8080` (port-forwarded GKE) | Yes (`dd-java-agent`) | Yes |
