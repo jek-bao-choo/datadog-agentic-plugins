@@ -36,6 +36,10 @@ __pycache__/
 # Java
 target/
 
+# Gradle / Android build artifacts (contain absolute local paths)
+.gradle/
+build/
+
 # .NET
 bin/
 obj/

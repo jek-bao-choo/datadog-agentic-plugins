@@ -129,6 +129,7 @@ Where the prospect's workloads run. This is the foundation layer of any PoC stac
 | `cloudprem-selfhosted` | Datadog Cloud-Prem Observability Pipelines + Scality S3 storage |
 | `shell-test` | Test traces, logs, and events via bash/curl scripts |
 | `sandbox-setup` | Sandbox environments — LiteLLM, Docker Agent, OTel Collector |
+| `docker` | Local Docker runtime on macOS via Colima (Docker Desktop replacement) |
 
 **Dependency rule:** Infrastructure plugins have no `requires:` — they are the base layer.
 
@@ -245,6 +246,9 @@ datadog-agentic-plugins/
     skills/running-dd-agent-apm/
     skills/running-dd-dogstatsd/
     skills/running-otel-collector/
+
+  docker/                          # Local Docker runtime on macOS via Colima
+    skills/using-colima/
 
   # ──────────────────────────────────────────────
   # Instrumentation — Backend
