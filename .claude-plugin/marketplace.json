@@ -186,6 +186,12 @@
       "source": "./sandbox-setup",
       "description": "Initialise sandbox environments for Datadog testing",
       "version": "0.1.0"
+    },
+    {
+      "name": "docker",
+      "source": "./docker",
+      "description": "Run Docker containers on macOS with Colima instead of Docker Desktop",
+      "version": "0.1.0"
     }
   ]
 }
