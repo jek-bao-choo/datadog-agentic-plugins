@@ -23,6 +23,10 @@ and confirm data is actually arriving.
 
 Get the server running first with the `setup-ibm-websphere-8-5-5-30` skill in this plugin.
 
+`README.md` beside this file covers what tWAS is, why it is still in use, its alternatives,
+and an architecture diagram of the collection path. Read that for background; use this file
+to drive the work.
+
 ## How the integration works
 
 **Not JMX.** The check scrapes **PerfServlet** — an IBM-supplied servlet that publishes
@@ -206,6 +210,7 @@ network with `docker inspect <container> --format '{{range $k,$v := .NetworkSett
 - `scripts/enable-perfservlet.py` — the Jython the wrapper runs inside the container
 - `scripts/ibm_was.d/conf.yaml` — check + logs config template (`@WAS_CONTAINER@` substituted)
 - `scripts/run-dd-agent.sh` — network wiring and the containerised Agent
+- `README.md` — what tWAS is, alternatives, how collection works, architecture diagram
 - `references/collected-metrics.md` — the metrics actually measured, with entity tags
 - `references/datadog-platform-monitoring-was*.png` — backend proof that data arrived
 - `docker/skills/setup-ibm-websphere-8-5-5-30/SKILL.md` — get WebSphere running first
