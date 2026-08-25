@@ -1,4 +1,6 @@
-The following is a complete, atomic runbook for a local **WebSphere Application Server traditional 8.5.5.30 development environment** using Podman.
+The following is a complete, atomic runbook for a local **WebSphere Application Server traditional 8.5.5.30 development environment** using Docker.
+
+On macOS the Docker host is Colima — set it up first with the `using-colima` skill in this plugin.
 
 IBM currently lists `.30`, `.29`, and `.28`; pull and archive `.30` now because IBM retains only three fix-pack tags. The image uses UBI 8 and IBM Java 8. [IBM’s current image list](https://github.com/WASdev/ci.docker.websphere-traditional/blob/main/docs/images.md).
 
@@ -8,7 +10,7 @@ This produces WebSphere **8.5.5.30**, not the originally discussed 8.5.5.5.
 
 ### macOS
 
-1. Check your Mac’s processor:
+1. Check your Mac's processor:
 
 ```bash
 uname -m
@@ -19,102 +21,74 @@ uname -m
 * `x86_64`: use the Intel/AMD commands.
 * `arm64`: use the Apple Silicon commands containing `--platform linux/amd64`.
 
-3. Download the official Podman installer from [Podman’s installation page](https://podman.io/docs/installation).
-
-4. Install the downloaded `.pkg`.
-
-5. Open Terminal.
-
-6. Verify Podman:
+3. Set up Docker via Colima using the `using-colima` skill in this plugin. If Colima is
+   already installed, confirm it is healthy:
 
 ```bash
-podman --version
+bash ../using-colima/scripts/colima-preflight.sh
 ```
 
-7. List existing Podman machines:
+4. WebSphere needs far more than Colima's defaults. Size the VM before starting:
 
 ```bash
-podman machine list
+colima stop
 ```
 
-8. If no machine exists, create one:
+5. Start Colima with WAS-appropriate resources:
 
 ```bash
-podman machine init \
-  --cpus 4 \
-  --memory 8192 \
-  --disk-size 50 \
-  --now
+colima start \
+  --cpu 4 \
+  --memory 8 \
+  --disk 60 \
+  --vm-type=vz \
+  --vz-rosetta
 ```
 
-9. If a machine exists but is stopped, start it:
+6. Verify the Docker daemon:
 
 ```bash
-podman machine start
+docker info
 ```
 
-10. Verify the Podman service:
+7. Confirm the VM resources:
 
 ```bash
-podman info
+colima status
 ```
 
-11. Inspect the machine resources:
-
-```bash
-podman machine inspect
-```
-
-12. Confirm that the machine has approximately:
+8. Confirm approximately:
 
 ```text
 4 CPUs
-8192 MiB memory
-50 GiB disk
+8 GiB memory
+60 GiB disk
 ```
 
-13. On Apple Silicon, open Podman Desktop.
+On Apple Silicon, `--vz-rosetta` is what allows the `linux/amd64` WebSphere image to run.
+Without it the container will not start.
 
-14. On Apple Silicon, confirm Rosetta support is enabled.
-
-Podman Desktop enables Rosetta by default for newly created Apple Silicon machines. [Podman Rosetta documentation](https://podman-desktop.io/docs/podman/rosetta).
-
-Do not delete an existing Podman machine just to change this setting unless its images and containers have been backed up.
+Do not delete an existing Colima VM just to resize it unless its images and containers
+have been backed up. `colima stop` followed by `colima start` with new flags is enough.
 
 ### Linux
 
-15. On Ubuntu or Debian, install Podman:
+9. Install Docker using your distribution's packages, or Docker's official repository.
+
+10. Verify Docker:
 
 ```bash
-sudo apt-get update
+docker info
 ```
 
-16. Install the package:
-
-```bash
-sudo apt-get install -y podman
-```
-
-Alternatively, on Fedora or CentOS Stream:
-
-```bash
-sudo dnf install -y podman
-```
-
-17. Verify Podman:
-
-```bash
-podman info
-```
-
-Do not run `podman machine` commands on a normal Linux host.
+Do not run `colima` commands on a normal Linux host — the daemon runs natively there.
 
 ## B. Check ports and container names
 
 18. Check whether the planned container name already exists:
 
 ```bash
-podman ps -a \
+docker ps -a \
   --filter name=was85530
 ```
 
@@ -153,7 +127,7 @@ No output means the port is normally available.
 23. Pull the image:
 
 ```bash
-podman pull \
+docker pull \
   icr.io/appcafe/websphere-traditional:8.5.5.30
 ```
 
@@ -162,7 +136,7 @@ podman pull \
 23. Pull the x86-64 image through Rosetta:
 
 ```bash
-podman pull \
+docker pull \
   --platform linux/amd64 \
   icr.io/appcafe/websphere-traditional:8.5.5.30
 ```
@@ -170,22 +144,22 @@ podman pull \
 24. Confirm the image exists locally:
 
 ```bash
-podman images \
+docker images \
   icr.io/appcafe/websphere-traditional
 ```
 
 25. Inspect the image:
 
 ```bash
-podman image inspect \
+docker image inspect \
   icr.io/appcafe/websphere-traditional:8.5.5.30
 ```
 
 26. Record its repository digest:
 
 ```bash
-podman image inspect \
-  --format '{{.Digest}}' \
+docker image inspect \
+  --format '{{index .RepoDigests 0}}' \
   icr.io/appcafe/websphere-traditional:8.5.5.30
 ```
 
@@ -196,7 +170,7 @@ podman image inspect \
 27. Run `versionInfo.sh`:
 
 ```bash
-podman run --rm \
+docker run --rm \
   --entrypoint /opt/IBM/WebSphere/AppServer/bin/versionInfo.sh \
   icr.io/appcafe/websphere-traditional:8.5.5.30 \
   -ifixes
@@ -207,7 +181,7 @@ podman run --rm \
 27. Run `versionInfo.sh` through x86-64 translation:
 
 ```bash
-podman run --rm \
+docker run --rm \
   --platform linux/amd64 \
   --entrypoint /opt/IBM/WebSphere/AppServer/bin/versionInfo.sh \
   icr.io/appcafe/websphere-traditional:8.5.5.30 \
@@ -229,8 +203,8 @@ IBM keeps only the latest three 8.5.5 container tags.
 30. Export the image:
 
 ```bash
-podman save \
-  --format oci-archive \
+docker save \
+  --platform linux/amd64 \
   -o websphere-traditional-8.5.5.30.tar \
   icr.io/appcafe/websphere-traditional:8.5.5.30
 ```
@@ -254,7 +228,7 @@ sha256sum \
 The archive will be several gigabytes. To restore it later:
 
 ```bash
-podman load \
+docker load \
   -i websphere-traditional-8.5.5.30.tar
 ```
 
@@ -263,13 +237,13 @@ podman load \
 33. Create a named log volume:
 
 ```bash
-podman volume create was85530-logs
+docker volume create was85530-logs
 ```
 
 34. Verify the volume:
 
 ```bash
-podman volume inspect was85530-logs
+docker volume inspect was85530-logs
 ```
 
 This volume preserves logs, not the entire WebSphere configuration.
@@ -281,7 +255,7 @@ This volume preserves logs, not the entire WebSphere configuration.
 35. Create and start the container:
 
 ```bash
-podman run -d \
+docker run -d \
   --name was85530 \
   --hostname was85530 \
   -e UPDATE_HOSTNAME=true \
@@ -298,7 +272,7 @@ podman run -d \
 35. Create and start the translated container:
 
 ```bash
-podman run -d \
+docker run -d \
   --platform linux/amd64 \
   --name was85530 \
   --hostname was85530 \
@@ -320,19 +294,19 @@ podman run -d \
 36. Confirm that the container is running:
 
 ```bash
-podman ps
+docker ps
 ```
 
 37. Confirm the port mappings:
 
 ```bash
-podman port was85530
+docker port was85530
 ```
 
 38. Follow the startup log:
 
 ```bash
-podman logs -f was85530
+docker logs -f was85530
 ```
 
 39. Wait for a message resembling:
@@ -348,7 +322,7 @@ Pressing `Ctrl+C` here stops log-following only; it does not stop WebSphere.
 41. Confirm the container still runs:
 
 ```bash
-podman ps \
+docker ps \
   --filter name=was85530
 ```
 
@@ -357,7 +331,7 @@ podman ps \
 42. Retrieve the administrative password:
 
 ```bash
-podman exec was85530 \
+docker exec was85530 \
   cat /tmp/PASSWORD
 ```
 
@@ -366,7 +340,7 @@ podman exec was85530 \
 44. Retrieve the keystore password:
 
 ```bash
-podman exec was85530 \
+docker exec was85530 \
   cat /tmp/KEYSTORE_PASSWORD
 ```
 
@@ -430,7 +404,7 @@ IBM documents these defaults, `/tmp/PASSWORD`, `/logs`, graceful shutdown and ap
 55. Verify WebSphere inside the running container:
 
 ```bash
-podman exec was85530 \
+docker exec was85530 \
   /opt/IBM/WebSphere/AppServer/bin/versionInfo.sh
 ```
 
@@ -443,14 +417,14 @@ Version    8.5.5.30
 57. Verify Java:
 
 ```bash
-podman exec was85530 \
+docker exec was85530 \
   /opt/IBM/WebSphere/AppServer/java/bin/java -version
 ```
 
 58. Inspect the WebSphere port definitions:
 
 ```bash
-podman exec was85530 \
+docker exec was85530 \
   cat /opt/IBM/WebSphere/AppServer/profiles/AppSrv01/properties/portdef.props
 ```
 
@@ -539,26 +513,26 @@ http://localhost:9080/sample
 86. Gracefully stop WebSphere:
 
 ```bash
-podman stop --time 60 was85530
+docker stop -t 60 was85530
 ```
 
 87. Confirm it stopped:
 
 ```bash
-podman ps -a \
+docker ps -a \
   --filter name=was85530
 ```
 
 88. Start it again:
 
 ```bash
-podman start was85530
+docker start was85530
 ```
 
 89. Follow its startup:
 
 ```bash
-podman logs -f was85530
+docker logs -f was85530
 ```
 
 90. Wait for:
@@ -569,14 +543,14 @@ WSVR0001I: Server server1 open for e-business
 
 91. Press `Ctrl+C`.
 
-Console and application changes survive `podman stop` and `podman start`. They are lost if you remove the container without reproducing or backing up the configuration.
+Console and application changes survive `docker stop` and `docker start`. They are lost if you remove the container without reproducing or backing up the configuration.
 
 ## N. Back up WebSphere configuration
 
 92. Create a WebSphere configuration backup:
 
 ```bash
-podman exec was85530 \
+docker exec was85530 \
   /opt/IBM/WebSphere/AppServer/bin/backupConfig.sh \
   /tmp/AppSrv01-backup.zip \
   -profileName AppSrv01 \
@@ -586,7 +560,7 @@ podman exec was85530 \
 93. Copy the backup to the host:
 
 ```bash
-podman cp \
+docker cp \
   was85530:/tmp/AppSrv01-backup.zip \
   ./AppSrv01-backup.zip
 ```
@@ -605,22 +579,22 @@ ls -lh AppSrv01-backup.zip
 
 After restarting macOS:
 
-96. Start the Podman machine:
+96. Start Colima:
 
 ```bash
-podman machine start
+colima start
 ```
 
 97. Start WebSphere:
 
 ```bash
-podman start was85530
+docker start was85530
 ```
 
 98. Check the server log:
 
 ```bash
-podman logs -f was85530
+docker logs -f was85530
 ```
 
 At the end of a session:
@@ -628,13 +602,13 @@ At the end of a session:
 99. Stop WebSphere gracefully:
 
 ```bash
-podman stop --time 60 was85530
+docker stop -t 60 was85530
 ```
 
-100. On macOS, stop the Podman machine:
+100. On macOS, stop Colima (optional — it reclaims the VM's CPU and memory):
 
 ```bash
-podman machine stop
+colima stop
 ```
 
 ## P. Do not remove these accidentally
@@ -642,11 +616,11 @@ podman machine stop
 Do not run either command unless you intentionally want to remove the environment:
 
 ```bash
-podman rm was85530
+docker rm was85530
 ```
 
 ```bash
-podman volume rm was85530-logs
+docker volume rm was85530-logs
 ```
 
 Removing the container deletes console-made WebSphere configuration that has not been backed up or reproduced. Removing the volume deletes the persisted logs.
