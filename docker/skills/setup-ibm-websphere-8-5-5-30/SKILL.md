@@ -9,7 +9,7 @@ description: >-
   manager or node agent, or deploying an EAR/WAR to WebSphere. Also use it when the user
   is running WebSphere on Apple Silicon and hits `linux/amd64` platform or emulation
   problems — even if they only say "WAS 8.5.5" or "WebSphere in Docker".
-version: 0.2.0
+version: 0.3.0
 version_matrix:
   was_version: [8.5.5.30]
 ---
@@ -26,6 +26,24 @@ fixpack step. The image is `linux/amd64` only.
 `README.md` holds the full step-by-step runbook, including WAR/EAR deployment through the
 console and configuration backup. Use this file to drive the setup; drop into the README
 when the user needs the long form.
+
+## Verified
+
+End-to-end run on macOS 26.6 / Apple Silicon, Colima `vz` + Rosetta, Docker 29.5.2,
+4 CPU / 16 GB VM — console reachable and `server1` started.
+
+| | |
+|---|---|
+| Image digest | `sha256:24e73173afb52203bfa28fa992e878c2a71a0f85de951242556b35275ebbf4d6` |
+| Compressed / on-disk | 1.19 GB / 2.91 GB (1.1 GB as a `docker save` tar) |
+| Product | `8.5.5.30`, build `cf302626.03`, package `...v85_8.5.5030.20260701_1755` |
+| JVM | IBM J9 `1.8.0_491` (SR8 FP65), amd64 |
+| Time to `WSVR0001I` | ~40 s |
+| Console | `302` from `https://localhost:9043/ibm/console` |
+
+The profile also listens on `WC_adminhost=9060` (console over HTTP) and
+`SOAP_CONNECTOR_ADDRESS=8880` (`wsadmin`). Neither is published by the `docker run` below —
+add `-p 127.0.0.1:8880:8880` if the user needs remote `wsadmin`.
 
 ## Prerequisites
 
@@ -76,7 +94,7 @@ Confirm the version before starting anything:
 ```bash
 docker run --rm $WAS_PLATFORM \
   --entrypoint /opt/IBM/WebSphere/AppServer/bin/versionInfo.sh \
-  "$WAS_IMAGE" | grep -A1 "Installed Product"
+  "$WAS_IMAGE" | grep -A4 "Installed Product"
 ```
 
 Expect `Version  8.5.5.30`. Stop if it reports anything else.
@@ -101,7 +119,6 @@ docker volume create was85530-logs
 docker run -d $WAS_PLATFORM \
   --name was85530 \
   --hostname was85530 \
-  -e UPDATE_HOSTNAME=true \
   -e ENABLE_BASIC_LOGGING=true \
   -p 127.0.0.1:9043:9043 \
   -p 127.0.0.1:9443:9443 \
@@ -114,7 +131,18 @@ Binding to `127.0.0.1` keeps the console off the local network — WAS ships wit
 default admin user, so do not publish these ports broadly.
 `ENABLE_BASIC_LOGGING=true` gives readable `SystemOut.log` instead of the HPEL JSON stream.
 
+Do **not** add `-e UPDATE_HOSTNAME=true`. The 8.5.5.30 UBI image has no `hostname` binary
+on its `PATH`, so the image's `updateHostName.py` runs with no argument and dies with
+`IndexError: index out of range: 1`. Startup survives it, but the variable accomplishes
+nothing — the node keeps `hostName="localhost"` in `serverindex.xml`, which is what
+port-forwarded local access wants anyway. Setting it only adds a traceback to the log.
+
 The volume persists **logs only**, not the WebSphere configuration. See step 8.
+
+`/logs` in the image is a symlink to
+`/opt/IBM/WebSphere/AppServer/profiles/AppSrv01/logs`, so Docker resolves the mount onto
+the real profile log directory. `SystemOut.log`, `SystemErr.log`, and `ffdc/` all land in
+the volume as intended.
 
 ### 5. Wait for startup
 
@@ -123,23 +151,35 @@ docker logs -f was85530
 ```
 
 Wait for `WSVR0001I: Server server1 open for e-business`, then `Ctrl+C` — that stops
-log-following only, not the server. Startup takes a few minutes, longer under Rosetta.
+log-following only, not the server. On Apple Silicon under Rosetta this took about 40
+seconds on a 4-CPU / 16 GB VM; allow a few minutes on slower hosts before suspecting a
+problem.
 
 Non-interactive equivalent:
 
 ```bash
-until docker logs was85530 2>&1 | grep -q "open for e-business"; do sleep 10; done
+for i in $(seq 1 120); do
+  docker logs was85530 2>&1 | grep -q "open for e-business" && { echo READY; break; }
+  docker ps --filter name=was85530 --format '{{.Names}}' | grep -q was85530 \
+    || { echo "EXITED before ready"; docker logs was85530 2>&1 | tail -40; break; }
+  sleep 10
+done
 ```
+
+The container-exit guard matters: a bare `until ... grep` loop spins forever if the JVM
+aborts, and a hung wait looks identical to a slow start.
 
 ### 6. Retrieve credentials
 
 ```bash
 docker exec was85530 cat /tmp/PASSWORD
-docker exec was85530 cat /tmp/KEYSTORE_PASSWORD
 ```
 
-The admin user is `wsadmin`. Tell the user to store both in a password manager; never
-write them into the repo or a Compose file.
+The admin user is `wsadmin`. That is the only credential — this image creates no
+`/tmp/KEYSTORE_PASSWORD`. `/tmp` holds just `PASSWORD` and `passwordupdated`, and the
+image's `start_server.sh` references no keystore file, so do not go hunting for a second
+password. Tell the user to store it in a password manager; never write it into the repo
+or a Compose file.
 
 ### 7. Open the console
 
@@ -174,8 +214,8 @@ binary backup.
 ```bash
 docker ps --filter name=was85530             # Up
 docker port was85530                         # 9043, 9443, 9080 bound to 127.0.0.1
-docker exec was85530 /opt/IBM/WebSphere/AppServer/bin/versionInfo.sh | grep -A1 "Installed Product"
-curl -k -o /dev/null -w '%{http_code}\n' https://localhost:9043/ibm/console
+docker exec was85530 /opt/IBM/WebSphere/AppServer/bin/versionInfo.sh | grep -A4 "Installed Product"
+curl -k -sS -o /dev/null -w '%{http_code}\n' https://localhost:9043/ibm/console
 ```
 
 Expect the container `Up`, `Version 8.5.5.30`, and an HTTP `200` or `302` from the console.
