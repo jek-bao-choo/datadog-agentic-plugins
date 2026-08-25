@@ -508,6 +508,14 @@ For a WAR named `sample.war`, try:
 http://localhost:9080/sample
 ```
 
+To skip the console clicks entirely — or to make a deployment repeatable — use the scripted
+path instead. It installs with the same target and virtual host this section specifies:
+
+```bash
+./scripts/make-sample-war.sh /tmp/sample.war
+./scripts/deploy-war.sh /tmp/sample.war
+```
+
 ## M. Stop and restart safely
 
 77. Gracefully stop WebSphere:
