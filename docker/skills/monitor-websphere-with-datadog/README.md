@@ -133,8 +133,31 @@ with `statisticSet=all`:
 
 ### Architecture
 
-How it fits together on a macOS/Colima laptop. On a Linux host the Colima boundary
-disappears; everything else is identical.
+Two deployment topologies, both valid. Editable Excalidraw scenes live in `references/` —
+open them at [excalidraw.com](https://excalidraw.com) or with the VS Code / Obsidian
+extension. The arrows are bound connectors, so they stay attached when you move a box.
+
+| Topology | Scene | When |
+|---|---|---|
+| Agent on the host, tWAS on the same host | `references/architecture-host-agent.excalidraw` | Classic on-prem install. tWAS runs natively; the Agent tails profile logs off the local filesystem. |
+| Agent in one container, tWAS in another | `references/architecture-container-agent.excalidraw` | Containerised WebSphere — what this skill automates. |
+
+The collection mechanism is identical in both: an HTTP GET against PerfServlet. Only two
+things differ — how the Agent addresses WebSphere, and how it reaches the logs.
+
+**Agent on the host.** `servlet_url` is `http://localhost:9080/...`, and log collection is
+just a file path: the Agent and the profile share a filesystem, so `SystemOut.log` needs no
+mount. The simplest arrangement, and what most on-prem installs use.
+
+**Agent in a container.** `servlet_url` uses the container name over a user-defined docker
+network, and the log volume must be mounted into the Agent. One caveat worth stating
+precisely: a *host-installed* Agent cannot read a container's log volume **on macOS**,
+because the volume lives inside the Colima VM. On a Linux Docker host it could, since
+`/var/lib/docker/volumes/...` is a real local path. The container Agent is the portable
+answer.
+
+The ASCII version below is the containerised case, matching what the scripts build. On a
+Linux host the Colima boundary disappears; everything else is identical.
 
 ```
   macOS host
@@ -233,6 +256,8 @@ Full measured list with example values: `references/collected-metrics.md`.
 
 - `SKILL.md` — the procedure, validation, and troubleshooting
 - `references/collected-metrics.md` — every metric measured, with entity tags
+- `references/architecture-host-agent.excalidraw` — Agent and tWAS on one host
+- `references/architecture-container-agent.excalidraw` — Agent and tWAS in separate containers
 - `docker/skills/setup-ibm-websphere-8-5-5-30/` — standing the server up in the first place
 - Datadog integration docs: https://docs.datadoghq.com/integrations/ibm_was/
 - IBM's container repository: https://github.com/WASdev/ci.docker.websphere-traditional

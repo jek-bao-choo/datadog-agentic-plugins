@@ -210,7 +210,8 @@ network with `docker inspect <container> --format '{{range $k,$v := .NetworkSett
 - `scripts/enable-perfservlet.py` — the Jython the wrapper runs inside the container
 - `scripts/ibm_was.d/conf.yaml` — check + logs config template (`@WAS_CONTAINER@` substituted)
 - `scripts/run-dd-agent.sh` — network wiring and the containerised Agent
-- `README.md` — what tWAS is, alternatives, how collection works, architecture diagram
+- `README.md` — what tWAS is, alternatives, how collection works, architecture
+- `references/architecture-*.excalidraw` — editable diagrams: host-installed vs containerised Agent
 - `references/collected-metrics.md` — the metrics actually measured, with entity tags
 - `references/datadog-platform-monitoring-was*.png` — backend proof that data arrived
 - `docker/skills/setup-ibm-websphere-8-5-5-30/SKILL.md` — get WebSphere running first
