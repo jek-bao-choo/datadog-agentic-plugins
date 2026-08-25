@@ -1,0 +1,39 @@
+## Datadog `ibm_was` check for a containerised WebSphere traditional profile.
+##
+## @WAS_CONTAINER@ is substituted by run-dd-agent.sh with the WebSphere container name.
+## It resolves by DNS because both containers sit on the same user-defined docker network.
+##
+## No username/password: PerfServlet answers unauthenticated when WebSphere application
+## security is off, which is the default for the icr.io/appcafe image. If application
+## security is enabled, add `username` and `password` here - and use the Agent secrets
+## backend (ENC[...]) rather than a plaintext password.
+init_config:
+
+instances:
+  - servlet_url: http://@WAS_CONTAINER@:9080/wasPerfTool/servlet/perfservlet
+    tags:
+      - env:local
+      - was_version:8.5.5.30
+      - was_cell:DefaultCell01
+      - was_node:DefaultNode01
+      - was_server:server1
+
+## The WAS log volume is mounted read-only at /was-logs. Only reachable from an Agent on
+## the Docker host: on macOS the volume lives inside the Colima VM.
+logs:
+  - type: file
+    path: /was-logs/server1/SystemOut.log
+    service: websphere
+    source: ibm_was
+    log_processing_rules:
+      - type: multi_line
+        name: was_timestamp_start
+        pattern: \[\d+/\d+/\d+ \d+:\d+:\d+:\d+ \w+\]
+  - type: file
+    path: /was-logs/server1/SystemErr.log
+    service: websphere
+    source: ibm_was
+    log_processing_rules:
+      - type: multi_line
+        name: was_timestamp_start
+        pattern: \[\d+/\d+/\d+ \d+:\d+:\d+:\d+ \w+\]

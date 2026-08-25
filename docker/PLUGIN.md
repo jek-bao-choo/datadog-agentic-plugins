@@ -8,6 +8,7 @@ category: infrastructure
 requires: []
 supported_versions:
   was_version: [8.5.5.30]
+  agent_version: [7.80.3]
 ---
 
 ## Overview
@@ -31,13 +32,19 @@ needed, and drive container operations — spin up, start, stop, restart, and te
 
 ### setup-ibm-websphere-8-5-5-30
 Stand up IBM WebSphere Application Server traditional 8.5.5.30 in a container, reach the admin
-console, and deploy an application. **Scaffold only** — the setup procedure is still pending
-from the skill owner, so the skill currently asks for the steps rather than improvising them.
+console, and deploy a WAR. Verified end-to-end against `icr.io/appcafe/websphere-traditional`,
+which pulls anonymously — no Passport Advantage entitlement or Installation Manager needed.
+
+### monitor-websphere-with-datadog
+Wire the Datadog `ibm_was` check to a running WebSphere container: deploy IBM's PerfServlet,
+raise PMI to `statisticSet=all`, run a containerised Agent, and ship `SystemOut.log` /
+`SystemErr.log`. Includes the metrics actually measured on a real profile.
 
 ## Recommended Skill Order
 
 1. using-colima — get a working Docker host first
-2. setup-ibm-websphere-8-5-5-30
+2. setup-ibm-websphere-8-5-5-30 — get the server running and an app deployed
+3. monitor-websphere-with-datadog — instrument it
 
 ## Compatibility Notes
 
