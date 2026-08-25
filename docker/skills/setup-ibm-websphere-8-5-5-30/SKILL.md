@@ -9,7 +9,7 @@ description: >-
   manager or node agent, or deploying an EAR/WAR to WebSphere. Also use it when the user
   is running WebSphere on Apple Silicon and hits `linux/amd64` platform or emulation
   problems — even if they only say "WAS 8.5.5" or "WebSphere in Docker".
-version: 0.3.0
+version: 0.4.0
 version_matrix:
   was_version: [8.5.5.30]
 ---
@@ -40,6 +40,7 @@ End-to-end run on macOS 26.6 / Apple Silicon, Colima `vz` + Rosetta, Docker 29.5
 | JVM | IBM J9 `1.8.0_491` (SR8 FP65), amd64 |
 | Time to `WSVR0001I` | ~40 s |
 | Console | `302` from `https://localhost:9043/ibm/console` |
+| WAR deploy | `sample.war` served `200` at `/sample` on both 9080 and 9443 |
 
 The profile also listens on `WC_adminhost=9060` (console over HTTP) and
 `SOAP_CONNECTOR_ADDRESS=8880` (`wsadmin`). Neither is published by the `docker run` below —
@@ -197,6 +198,18 @@ Image defaults: profile `AppSrv01`, cell `DefaultCell01`, node `DefaultNode01`, 
 ### 8. Deploy a WAR or EAR, and back up
 
 Console deployment and `backupConfig.sh` are step-by-step in `README.md` sections L and N.
+
+For a scripted deployment — repeatable, and the only option when no one is at a browser:
+
+```bash
+./scripts/make-sample-war.sh /tmp/sample.war   # throwaway WAR, if you need one to test with
+./scripts/deploy-war.sh /tmp/sample.war        # -> app "sample" at /sample
+./scripts/deploy-war.sh /tmp/app.war MyApp /myapp
+```
+
+`deploy-war.sh` reads the admin password from the container, installs with the same target
+and virtual host the console flow uses, saves, starts the app, and prints both URLs. Run it
+again on the same app name and it uninstalls first, so redeploys are idempotent.
 The important part: **configuration lives in the container, not the volume.** Removing the
 container discards console changes unless they were backed up:
 
@@ -256,6 +269,32 @@ re-read the file.
 **Cause:** The named volume covers `/logs` only; configuration lives in the container layer.
 **Fix:** Restore from `backupConfig.sh` output. Take a backup before any `docker rm`.
 
+### `Context root /x/* is already bound. Cannot start application`
+**Cause:** Another installed application already owns that context root. The install
+succeeds and only the *start* fails, so a dead application is left in the configuration.
+**Fix:** Deploy at a different context root, or uninstall the incumbent first —
+`AdminApp.list()` shows what is installed. `scripts/deploy-war.sh` detects this, rolls its
+own install back, and names the conflict; note that it only auto-replaces an app with the
+*same name*, so a same-context-root-different-name collision is yours to resolve.
+
+### `wsadmin` hangs, then fails with `PKIX path building failed`
+**Cause:** The SOAP client does not trust the profile's self-signed certificate, so it asks
+`Add signer to the trust store now? (y/n)` and waits on stdin. Under plain `docker exec`
+there is no stdin to answer with, so it dies with `ConnectorNotAvailableException` and
+`WASX7206W: The application management service is not running`.
+**Fix:** Answer the prompt and give it a stdin to arrive on — note the `-i`:
+```bash
+yes y | docker exec -i was85530 /opt/IBM/WebSphere/AppServer/bin/wsadmin.sh \
+  -lang jython -conntype SOAP -user wsadmin -password "$PW" -f /tmp/script.py
+```
+`scripts/deploy-war.sh` already does this.
+
+### `SyntaxError` from a `wsadmin` Jython script that is valid Python
+**Cause:** WAS 8.5.5 embeds **Jython 2.1**. No conditional expressions (`x if y else z`),
+no `True`/`False`, no f-strings, no `enumerate`.
+**Fix:** Rewrite in plain 2.1 — `if`/`else` blocks, `1`/`0`, `%` formatting. The traceback
+points at the offending line with a caret.
+
 ### Manifest or tag not found on pull
 **Cause:** IBM retains only the latest three 8.5.5 fixpack tags; 8.5.5.30 may have rotated out.
 **Fix:** Load the archived tar from step 3, or check IBM's current tag list at
@@ -263,6 +302,9 @@ https://github.com/WASdev/ci.docker.websphere-traditional/blob/main/docs/images.
 
 ## References
 
+- `scripts/deploy-war.sh` — install, start, and redeploy a WAR via `wsadmin`
+- `scripts/deploy-war.py` — the Jython the wrapper runs inside the container
+- `scripts/make-sample-war.sh` — build a throwaway WAR to smoke-test a deployment
 - `README.md` — the full runbook, including console WAR/EAR deployment and backup
 - `docker/skills/using-colima/SKILL.md` — get the Docker host working first on macOS
 - IBM's image repository: https://github.com/WASdev/ci.docker.websphere-traditional
